@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261008-4">
+  <link rel="stylesheet" href="./styles.css?v=20261008-5">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -231,6 +231,8 @@
           <div class="seller-actions">
             <span id="selected-seller-status">Selecione um vendedor para continuar.</span>
             <div class="actions">
+              <button class="button secondary" id="clear-selection-button" type="button" disabled>Limpar seleção</button>
+              <button class="button danger" id="delete-selected-button" type="button" disabled>Excluir selecionados</button>
               <button class="button secondary" id="edit-seller-button" type="button" disabled>Abrir cadastro</button>
               <button class="button spreadsheet" id="seller-plan56-button" type="button" disabled>Baixar Plan 5 + 6</button>
               <button class="button spreadsheet" id="seller-sgt3-button" type="button" disabled>Baixar SGT3</button>
@@ -261,6 +263,6 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-4"></script>
+  <script src="./app.js?v=20261008-5"></script>
 </body>
 </html>

@@ -14,6 +14,8 @@ const sellerEmpty = document.querySelector('#seller-empty');
 const sellerCount = document.querySelector('#seller-count');
 const sellerSearch = document.querySelector('#seller-search');
 const selectedSellerStatus = document.querySelector('#selected-seller-status');
+const clearSelectionButton = document.querySelector('#clear-selection-button');
+const deleteSelectedButton = document.querySelector('#delete-selected-button');
 const editSellerButton = document.querySelector('#edit-seller-button');
 const sellerPlan56Button = document.querySelector('#seller-plan56-button');
 const sellerSgt3Button = document.querySelector('#seller-sgt3-button');
@@ -237,6 +239,8 @@ function toggleSeller(id) {
 function updateSellerActions() {
   const seller = selectedSeller();
   const count = selectedSellerIds.size;
+  clearSelectionButton.disabled = count === 0;
+  deleteSelectedButton.disabled = count === 0;
   editSellerButton.disabled = count !== 1;
   for (const button of [sellerPlan56Button, sellerSgt3Button, sellerNetsalesButton]) button.disabled = count === 0;
   selectedSellerStatus.textContent = count ? `${count} vendedor${count > 1 ? 'es' : ''} selecionado${count > 1 ? 's' : ''}.` : 'Selecione um ou mais vendedores para continuar.';
@@ -246,6 +250,37 @@ async function downloadSelected(generator, triggerButton) {
   const sellers = selectedSellers();
   if (!sellers.length) return;
   await generator(sellers.map((seller) => seller.data), triggerButton);
+}
+
+function clearSellerSelection() {
+  selectedSellerIds.clear();
+  selectedSellerId = null;
+  renderSellers();
+}
+
+async function deleteSelectedSellers() {
+  const sellers = selectedSellers();
+  if (!sellers.length) return;
+  const label = sellers.length === 1 ? sellers[0].data.nome || 'o vendedor selecionado' : `${sellers.length} vendedores selecionados`;
+  if (!window.confirm(`Excluir permanentemente ${label}? Esta ação não pode ser desfeita.`)) return;
+  deleteSelectedButton.disabled = true;
+  deleteSelectedButton.textContent = 'Excluindo…';
+  try {
+    const ids = sellers.map((seller) => seller.id).join(',');
+    await apiRequest(`/rest/v1/vendedores?id=in.(${ids})`, {
+      method: 'DELETE',
+      headers: { Prefer: 'return=minimal' }
+    }, true);
+    selectedSellerIds.clear();
+    selectedSellerId = null;
+    await loadSellers();
+    showToast(`${sellers.length} cadastro${sellers.length > 1 ? 's' : ''} excluído${sellers.length > 1 ? 's' : ''}.`);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível excluir os vendedores.');
+  } finally {
+    deleteSelectedButton.textContent = 'Excluir selecionados';
+    updateSellerActions();
+  }
 }
 
 function openSeller() {
@@ -512,6 +547,8 @@ plan56Button.addEventListener('click', () => downloadPlan56());
 sgt3Button.addEventListener('click', () => downloadSgt3());
 netsalesButton.addEventListener('click', () => downloadNetSales());
 sellerSearch.addEventListener('input', renderSellers);
+clearSelectionButton.addEventListener('click', clearSellerSelection);
+deleteSelectedButton.addEventListener('click', deleteSelectedSellers);
 selectAllSellers.addEventListener('change', () => {
   if (selectAllSellers.checked) getSavedSellers().forEach((seller) => selectedSellerIds.add(seller.id));
   else selectedSellerIds.clear();
