@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261008-2">
+  <link rel="stylesheet" href="./styles.css?v=20261008-3">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -184,6 +184,7 @@
           <div class="actions">
             <button class="button secondary" type="reset">Restaurar</button>
             <button class="button save" id="save-button" type="button"><span aria-hidden="true">▣</span> Salvar cadastro</button>
+            <button class="button spreadsheet" id="save-next-button" type="button"><span aria-hidden="true">＋</span> Salvar e adicionar outro</button>
             <button class="button primary" type="submit"><span aria-hidden="true">✓</span> Copiar cadastro</button>
           </div>
         </div>
@@ -222,7 +223,7 @@
         <div class="seller-card">
           <div class="seller-table-wrap">
             <table class="seller-table">
-              <thead><tr><th scope="col">Selecionar</th><th scope="col">Vendedor</th><th scope="col">CPF</th><th scope="col">Código</th><th scope="col">Cidade</th><th scope="col">Salvo em</th></tr></thead>
+              <thead><tr><th scope="col"><label class="select-all"><input id="select-all-sellers" type="checkbox"> Todos</label></th><th scope="col">Vendedor</th><th scope="col">CPF</th><th scope="col">Código</th><th scope="col">Cidade</th><th scope="col">Salvo em</th></tr></thead>
               <tbody id="seller-list"></tbody>
             </table>
           </div>
@@ -260,6 +261,6 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-2"></script>
+  <script src="./app.js?v=20261008-3"></script>
 </body>
 </html>

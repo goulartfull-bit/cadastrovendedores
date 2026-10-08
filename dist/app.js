@@ -3,6 +3,7 @@ const toast = document.querySelector('.toast');
 const menuButton = document.querySelector('.menu-button');
 const sidebar = document.querySelector('.sidebar');
 const saveButton = document.querySelector('#save-button');
+const saveNextButton = document.querySelector('#save-next-button');
 const plan56Button = document.querySelector('#plan56-button');
 const sgt3Button = document.querySelector('#sgt3-button');
 const netsalesButton = document.querySelector('#netsales-button');
@@ -18,6 +19,7 @@ const sellerPlan56Button = document.querySelector('#seller-plan56-button');
 const sellerSgt3Button = document.querySelector('#seller-sgt3-button');
 const sellerNetsalesButton = document.querySelector('#seller-netsales-button');
 const currentViewLabel = document.querySelector('#current-view-label');
+const selectAllSellers = document.querySelector('#select-all-sellers');
 const authModal = document.querySelector('#auth-modal');
 const authForm = document.querySelector('#auth-form');
 const authError = document.querySelector('#auth-error');
@@ -28,6 +30,7 @@ const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
 const authStorageKey = 'gestao-agente-autorizado-session';
 let sellersCache = [];
 let selectedSellerId = null;
+const selectedSellerIds = new Set();
 let pendingProtectedView = null;
 sidebar.classList.remove('open');
 menuButton.setAttribute('aria-expanded', 'false');
@@ -114,11 +117,12 @@ async function apiRequest(path, options = {}, requireAuth = false) {
   return response.json().catch(() => null);
 }
 
-async function saveCadastro() {
+async function saveCadastro({ addAnother = false } = {}) {
   if (!validateBaseFields()) return;
   const data = Object.fromEntries(new FormData(form));
   const savedAt = new Date().toISOString();
   saveButton.disabled = true;
+  saveNextButton.disabled = true;
   saveStatus.textContent = 'Salvando com segurança...';
   try {
     const session = getSession();
@@ -140,11 +144,19 @@ async function saveCadastro() {
     reviewName.textContent = data.nome || 'Novo vendedor';
     if (session) await loadSellers();
     showToast('Cadastro salvo e sincronizado com sucesso.');
+    if (addAnother) {
+      form.reset();
+      selectedSellerId = null;
+      reviewName.textContent = 'Novo vendedor';
+      saveStatus.textContent = 'Cadastro salvo. Preencha os dados do próximo vendedor.';
+      form.elements.nome.focus();
+    }
   } catch (error) {
     saveStatus.textContent = 'Não foi possível salvar. Tente novamente.';
     showToast(error.message || 'Não foi possível salvar o cadastro.');
   } finally {
     saveButton.disabled = false;
+    saveNextButton.disabled = false;
   }
 }
 
@@ -172,6 +184,7 @@ async function loadSellers() {
   try {
     const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at&order=created_at.desc', {}, true);
     sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at }));
+    for (const id of selectedSellerIds) if (!sellersCache.some((seller) => seller.id === id)) selectedSellerIds.delete(id);
     if (selectedSellerId && !sellersCache.some((seller) => seller.id === selectedSellerId)) selectedSellerId = null;
     renderSellers();
   } catch (error) {
@@ -183,6 +196,10 @@ function selectedSeller() {
   return getSavedSellers().find((seller) => seller.id === selectedSellerId) || null;
 }
 
+function selectedSellers() {
+  return getSavedSellers().filter((seller) => selectedSellerIds.has(seller.id));
+}
+
 function renderSellers() {
   const term = (sellerSearch?.value || '').trim().toLocaleLowerCase('pt-BR');
   const sellers = getSavedSellers();
@@ -192,13 +209,15 @@ function renderSellers() {
   for (const seller of filtered) {
     const row = document.createElement('tr');
     row.dataset.sellerId = seller.id;
-    if (seller.id === selectedSellerId) row.classList.add('selected');
+    if (selectedSellerIds.has(seller.id)) row.classList.add('selected');
     const savedDate = new Date(seller.savedAt);
-    row.innerHTML = `<td><input type="radio" name="seller-selected" aria-label="Selecionar ${escapeHtml(seller.data.nome || 'vendedor')}" ${seller.id === selectedSellerId ? 'checked' : ''}></td><td><strong>${escapeHtml(seller.data.nome || 'Sem nome')}</strong><small>${escapeHtml(seller.data.email || '')}</small></td><td>${escapeHtml(seller.data.cpf || '')}</td><td>${escapeHtml(seller.data.codigo || '')}</td><td>${escapeHtml(seller.data.cidade || '')}</td><td>${Number.isNaN(savedDate.getTime()) ? '—' : savedDate.toLocaleDateString('pt-BR')}</td>`;
-    row.addEventListener('click', () => selectSeller(seller.id));
+    row.innerHTML = `<td><input type="checkbox" aria-label="Selecionar ${escapeHtml(seller.data.nome || 'vendedor')}" ${selectedSellerIds.has(seller.id) ? 'checked' : ''}></td><td><strong>${escapeHtml(seller.data.nome || 'Sem nome')}</strong><small>${escapeHtml(seller.data.email || '')}</small></td><td>${escapeHtml(seller.data.cpf || '')}</td><td>${escapeHtml(seller.data.codigo || '')}</td><td>${escapeHtml(seller.data.cidade || '')}</td><td>${Number.isNaN(savedDate.getTime()) ? '—' : savedDate.toLocaleDateString('pt-BR')}</td>`;
+    row.addEventListener('click', () => toggleSeller(seller.id));
     sellerList.appendChild(row);
   }
   sellerEmpty.hidden = filtered.length > 0;
+  selectAllSellers.checked = sellers.length > 0 && sellers.every((seller) => selectedSellerIds.has(seller.id));
+  selectAllSellers.indeterminate = selectedSellerIds.size > 0 && !selectAllSellers.checked;
   updateSellerActions();
 }
 
@@ -208,15 +227,26 @@ function escapeHtml(value) {
   return node.innerHTML;
 }
 
-function selectSeller(id) {
-  selectedSellerId = id;
+function toggleSeller(id) {
+  if (selectedSellerIds.has(id)) selectedSellerIds.delete(id);
+  else selectedSellerIds.add(id);
+  selectedSellerId = selectedSellerIds.has(id) ? id : (selectedSellerIds.values().next().value || null);
   renderSellers();
 }
 
 function updateSellerActions() {
   const seller = selectedSeller();
-  for (const button of [editSellerButton, sellerPlan56Button, sellerSgt3Button, sellerNetsalesButton]) button.disabled = !seller;
-  selectedSellerStatus.textContent = seller ? `${seller.data.nome || 'Vendedor'} selecionado.` : 'Selecione um vendedor para continuar.';
+  const count = selectedSellerIds.size;
+  editSellerButton.disabled = count !== 1;
+  for (const button of [sellerPlan56Button, sellerSgt3Button, sellerNetsalesButton]) button.disabled = count === 0;
+  selectedSellerStatus.textContent = count ? `${count} vendedor${count > 1 ? 'es' : ''} selecionado${count > 1 ? 's' : ''}.` : 'Selecione um ou mais vendedores para continuar.';
+}
+
+async function downloadSelected(generator, triggerButton) {
+  const sellers = selectedSellers();
+  if (!sellers.length) return;
+  for (const seller of sellers) await generator(seller.data, triggerButton);
+  showToast(`${sellers.length} arquivo${sellers.length > 1 ? 's' : ''} gerado${sellers.length > 1 ? 's' : ''}.`);
 }
 
 function openSeller() {
@@ -441,23 +471,21 @@ form.addEventListener('submit', async (event) => {
   await copyCadastro();
 });
 saveButton.addEventListener('click', saveCadastro);
+saveNextButton.addEventListener('click', () => saveCadastro({ addAnother: true }));
 plan56Button.addEventListener('click', () => downloadPlan56());
 sgt3Button.addEventListener('click', () => downloadSgt3());
 netsalesButton.addEventListener('click', () => downloadNetSales());
 sellerSearch.addEventListener('input', renderSellers);
+selectAllSellers.addEventListener('change', () => {
+  if (selectAllSellers.checked) getSavedSellers().forEach((seller) => selectedSellerIds.add(seller.id));
+  else selectedSellerIds.clear();
+  selectedSellerId = selectedSellerIds.values().next().value || null;
+  renderSellers();
+});
 editSellerButton.addEventListener('click', openSeller);
-sellerPlan56Button.addEventListener('click', () => {
-  const seller = selectedSeller();
-  if (seller) downloadPlan56(seller.data, sellerPlan56Button);
-});
-sellerSgt3Button.addEventListener('click', () => {
-  const seller = selectedSeller();
-  if (seller) downloadSgt3(seller.data, sellerSgt3Button);
-});
-sellerNetsalesButton.addEventListener('click', () => {
-  const seller = selectedSeller();
-  if (seller) downloadNetSales(seller.data, sellerNetsalesButton);
-});
+sellerPlan56Button.addEventListener('click', () => downloadSelected(downloadPlan56, sellerPlan56Button));
+sellerSgt3Button.addEventListener('click', () => downloadSelected(downloadSgt3, sellerSgt3Button));
+sellerNetsalesButton.addEventListener('click', () => downloadSelected(downloadNetSales, sellerNetsalesButton));
 form.addEventListener('input', () => { reviewName.textContent = form.elements.nome.value || 'Novo vendedor'; });
 form.addEventListener('reset', () => window.setTimeout(() => {
   reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
@@ -555,6 +583,7 @@ logoutButton.addEventListener('click', () => {
   sessionStorage.removeItem(authStorageKey);
   sellersCache = [];
   selectedSellerId = null;
+  selectedSellerIds.clear();
   updateAuthUi();
   showView('cadastro');
   showToast('Acesso encerrado.');
