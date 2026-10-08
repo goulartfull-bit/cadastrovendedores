@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261008-6">
+  <link rel="stylesheet" href="./styles.css?v=20261008-7">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -28,6 +28,9 @@
       </a>
       <a class="nav-item" href="#vendedores" data-view-link="vendedores">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span>
+      </a>
+      <a class="nav-item" href="#bd-vendedores" data-view-link="bd-vendedores">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span>BD de dados vendedor</span>
       </a>
       <a class="nav-item" href="#acessos" data-view-link="acessos">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span>
@@ -236,10 +239,38 @@
             <div class="actions">
               <button class="button secondary" id="clear-selection-button" type="button" disabled>Limpar seleção</button>
               <button class="button danger" id="delete-selected-button" type="button" disabled>Excluir selecionados</button>
+              <button class="button primary" id="archive-selected-button" type="button" disabled>Transferir para BD</button>
               <button class="button secondary" id="edit-seller-button" type="button" disabled>Abrir cadastro</button>
               <button class="button spreadsheet" id="seller-plan56-button" type="button" disabled>Baixar Plan 5 + 6</button>
               <button class="button spreadsheet" id="seller-sgt3-button" type="button" disabled>Baixar SGT3</button>
               <button class="button primary" id="seller-netsales-button" type="button" disabled>Baixar NetSales</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-view" id="view-bd-vendedores" data-view="bd-vendedores" hidden>
+        <header class="view-header seller-heading">
+          <div><p class="overline">GESTÃO DE ACESSOS · BANCO DE DADOS</p><h1>BD de dados vendedor</h1><p>Consulte vendedores arquivados e devolva os selecionados para a fila de cadastros.</p></div>
+          <div class="seller-count"><span>Arquivados</span><strong id="archived-count">0</strong></div>
+        </header>
+        <div class="seller-toolbar">
+          <label class="seller-search">Buscar no banco de dados<input id="archived-search" type="search" placeholder="Nome, CPF, código ou cidade"></label>
+          <button class="button secondary" id="refresh-archived-button" type="button">Atualizar</button>
+        </div>
+        <div class="seller-card">
+          <div class="seller-table-wrap">
+            <table class="seller-table">
+              <thead><tr><th scope="col"><label class="select-all"><input id="select-all-archived" type="checkbox"> Todos</label></th><th scope="col">Vendedor</th><th scope="col">CPF</th><th scope="col">Código</th><th scope="col">Cidade</th><th scope="col">Arquivado em</th></tr></thead>
+              <tbody id="archived-list"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="archived-empty"><strong>Nenhum vendedor no banco de dados</strong><span>Transfira vendedores da fila para que apareçam aqui.</span></div>
+          <div class="seller-actions">
+            <span id="selected-archived-status">Selecione um ou mais vendedores para continuar.</span>
+            <div class="actions">
+              <button class="button secondary" id="clear-archived-selection-button" type="button" disabled>Limpar seleção</button>
+              <button class="button primary" id="restore-selected-button" type="button" disabled>Retornar para vendedores cadastrados</button>
             </div>
           </div>
         </div>
@@ -284,7 +315,7 @@
       <span class="auth-mark" aria-hidden="true">G</span>
       <p class="overline">ÁREA RESTRITA</p>
       <h2 id="auth-title">Acesso administrativo</h2>
-      <p>Entre para acessar Revisão, Vendedores, Controle de acesso e geração de planilhas.</p>
+      <p>Entre para acessar Revisão, Vendedores, BD de dados, Controle de acesso e geração de planilhas.</p>
       <form id="auth-form">
         <label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label>
         <label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label>
@@ -297,6 +328,6 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-6"></script>
+  <script src="./app.js?v=20261008-7"></script>
 </body>
 </html>

@@ -16,6 +16,7 @@ const sellerSearch = document.querySelector('#seller-search');
 const selectedSellerStatus = document.querySelector('#selected-seller-status');
 const clearSelectionButton = document.querySelector('#clear-selection-button');
 const deleteSelectedButton = document.querySelector('#delete-selected-button');
+const archiveSelectedButton = document.querySelector('#archive-selected-button');
 const editSellerButton = document.querySelector('#edit-seller-button');
 const sellerPlan56Button = document.querySelector('#seller-plan56-button');
 const sellerSgt3Button = document.querySelector('#seller-sgt3-button');
@@ -32,12 +33,23 @@ const accessList = document.querySelector('#access-list');
 const accessEmpty = document.querySelector('#access-empty');
 const accessCount = document.querySelector('#access-count');
 const refreshAccessButton = document.querySelector('#refresh-access-button');
+const archivedList = document.querySelector('#archived-list');
+const archivedEmpty = document.querySelector('#archived-empty');
+const archivedCount = document.querySelector('#archived-count');
+const archivedSearch = document.querySelector('#archived-search');
+const selectAllArchived = document.querySelector('#select-all-archived');
+const selectedArchivedStatus = document.querySelector('#selected-archived-status');
+const clearArchivedSelectionButton = document.querySelector('#clear-archived-selection-button');
+const restoreSelectedButton = document.querySelector('#restore-selected-button');
+const refreshArchivedButton = document.querySelector('#refresh-archived-button');
 const supabaseUrl = 'https://vfkujizbdrmehnzrltjn.supabase.co';
 const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
 const authStorageKey = 'gestao-agente-autorizado-session';
 let sellersCache = [];
+let archivedSellersCache = [];
 let selectedSellerId = null;
 const selectedSellerIds = new Set();
+const selectedArchivedIds = new Set();
 let pendingProtectedView = null;
 let accessUsers = [];
 sidebar.classList.remove('open');
@@ -190,8 +202,8 @@ async function loadSellers() {
     return;
   }
   try {
-    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at&order=created_at.desc', {}, true);
-    sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at }));
+    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at,status&status=eq.fila&order=created_at.desc', {}, true);
+    sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at, status: row.status }));
     for (const id of selectedSellerIds) if (!sellersCache.some((seller) => seller.id === id)) selectedSellerIds.delete(id);
     if (selectedSellerId && !sellersCache.some((seller) => seller.id === selectedSellerId)) selectedSellerId = null;
     renderSellers();
@@ -247,9 +259,96 @@ function updateSellerActions() {
   const count = selectedSellerIds.size;
   clearSelectionButton.disabled = count === 0;
   deleteSelectedButton.disabled = count === 0;
+  archiveSelectedButton.disabled = count === 0;
   editSellerButton.disabled = count !== 1;
   for (const button of [sellerPlan56Button, sellerSgt3Button, sellerNetsalesButton]) button.disabled = count === 0;
   selectedSellerStatus.textContent = count ? `${count} vendedor${count > 1 ? 'es' : ''} selecionado${count > 1 ? 's' : ''}.` : 'Selecione um ou mais vendedores para continuar.';
+}
+
+async function moveSelectedSellersToDatabase() {
+  const sellers = selectedSellers();
+  if (!sellers.length) return;
+  archiveSelectedButton.disabled = true;
+  archiveSelectedButton.textContent = 'Transferindo…';
+  try {
+    const ids = sellers.map((seller) => seller.id).join(',');
+    await apiRequest(`/rest/v1/vendedores?id=in.(${ids})`, {
+      method: 'PATCH', headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: 'bd', archived_at: new Date().toISOString() })
+    }, true);
+    selectedSellerIds.clear();
+    selectedSellerId = null;
+    await loadSellers();
+    showToast(`${sellers.length} vendedor${sellers.length > 1 ? 'es transferidos' : ' transferido'} para o BD.`);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível transferir os vendedores.');
+  } finally {
+    archiveSelectedButton.textContent = 'Transferir para BD';
+    updateSellerActions();
+  }
+}
+
+async function loadArchivedSellers() {
+  if (!getSession()) return;
+  refreshArchivedButton.disabled = true;
+  try {
+    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at,archived_at,status&status=eq.bd&order=archived_at.desc', {}, true);
+    archivedSellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at, archivedAt: row.archived_at }));
+    for (const id of selectedArchivedIds) if (!archivedSellersCache.some((seller) => seller.id === id)) selectedArchivedIds.delete(id);
+    renderArchivedSellers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível carregar o banco de dados.');
+  } finally {
+    refreshArchivedButton.disabled = false;
+  }
+}
+
+function renderArchivedSellers() {
+  const term = (archivedSearch.value || '').trim().toLocaleLowerCase('pt-BR');
+  const filtered = archivedSellersCache.filter(({ data }) => [data.nome, data.cpf, data.codigo, data.cidade].some((value) => String(value || '').toLocaleLowerCase('pt-BR').includes(term)));
+  archivedCount.textContent = String(archivedSellersCache.length);
+  archivedList.replaceChildren();
+  for (const seller of filtered) {
+    const row = document.createElement('tr');
+    if (selectedArchivedIds.has(seller.id)) row.classList.add('selected');
+    const archivedDate = new Date(seller.archivedAt || seller.savedAt);
+    row.innerHTML = `<td><input type="checkbox" aria-label="Selecionar ${escapeHtml(seller.data.nome || 'vendedor')}" ${selectedArchivedIds.has(seller.id) ? 'checked' : ''}></td><td><strong>${escapeHtml(seller.data.nome || 'Sem nome')}</strong><small>${escapeHtml(seller.data.email || '')}</small></td><td>${escapeHtml(seller.data.cpf || '')}</td><td>${escapeHtml(seller.data.codigo || '')}</td><td>${escapeHtml(seller.data.cidade || '')}</td><td>${Number.isNaN(archivedDate.getTime()) ? '—' : archivedDate.toLocaleDateString('pt-BR')}</td>`;
+    row.addEventListener('click', () => {
+      if (selectedArchivedIds.has(seller.id)) selectedArchivedIds.delete(seller.id);
+      else selectedArchivedIds.add(seller.id);
+      renderArchivedSellers();
+    });
+    archivedList.appendChild(row);
+  }
+  archivedEmpty.hidden = filtered.length > 0;
+  selectAllArchived.checked = archivedSellersCache.length > 0 && archivedSellersCache.every((seller) => selectedArchivedIds.has(seller.id));
+  selectAllArchived.indeterminate = selectedArchivedIds.size > 0 && !selectAllArchived.checked;
+  const count = selectedArchivedIds.size;
+  clearArchivedSelectionButton.disabled = count === 0;
+  restoreSelectedButton.disabled = count === 0;
+  selectedArchivedStatus.textContent = count ? `${count} vendedor${count > 1 ? 'es selecionados' : ' selecionado'}.` : 'Selecione um ou mais vendedores para continuar.';
+}
+
+async function restoreSelectedSellers() {
+  const sellers = archivedSellersCache.filter((seller) => selectedArchivedIds.has(seller.id));
+  if (!sellers.length) return;
+  restoreSelectedButton.disabled = true;
+  restoreSelectedButton.textContent = 'Retornando…';
+  try {
+    const ids = sellers.map((seller) => seller.id).join(',');
+    await apiRequest(`/rest/v1/vendedores?id=in.(${ids})`, {
+      method: 'PATCH', headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: 'fila', archived_at: null })
+    }, true);
+    selectedArchivedIds.clear();
+    await loadArchivedSellers();
+    showToast(`${sellers.length} vendedor${sellers.length > 1 ? 'es retornaram' : ' retornou'} para a fila.`);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível retornar os vendedores.');
+  } finally {
+    restoreSelectedButton.textContent = 'Retornar para vendedores cadastrados';
+    renderArchivedSellers();
+  }
 }
 
 async function downloadSelected(generator, triggerButton) {
@@ -555,6 +654,7 @@ netsalesButton.addEventListener('click', () => downloadNetSales());
 sellerSearch.addEventListener('input', renderSellers);
 clearSelectionButton.addEventListener('click', clearSellerSelection);
 deleteSelectedButton.addEventListener('click', deleteSelectedSellers);
+archiveSelectedButton.addEventListener('click', moveSelectedSellersToDatabase);
 selectAllSellers.addEventListener('change', () => {
   if (selectAllSellers.checked) getSavedSellers().forEach((seller) => selectedSellerIds.add(seller.id));
   else selectedSellerIds.clear();
@@ -565,6 +665,15 @@ editSellerButton.addEventListener('click', openSeller);
 sellerPlan56Button.addEventListener('click', () => downloadSelected(downloadPlan56, sellerPlan56Button));
 sellerSgt3Button.addEventListener('click', () => downloadSelected(downloadSgt3, sellerSgt3Button));
 sellerNetsalesButton.addEventListener('click', () => downloadSelected(downloadNetSales, sellerNetsalesButton));
+archivedSearch.addEventListener('input', renderArchivedSellers);
+refreshArchivedButton.addEventListener('click', loadArchivedSellers);
+clearArchivedSelectionButton.addEventListener('click', () => { selectedArchivedIds.clear(); renderArchivedSellers(); });
+restoreSelectedButton.addEventListener('click', restoreSelectedSellers);
+selectAllArchived.addEventListener('change', () => {
+  if (selectAllArchived.checked) archivedSellersCache.forEach((seller) => selectedArchivedIds.add(seller.id));
+  else selectedArchivedIds.clear();
+  renderArchivedSellers();
+});
 form.addEventListener('input', () => { reviewName.textContent = form.elements.nome.value || 'Novo vendedor'; });
 form.addEventListener('reset', () => window.setTimeout(() => {
   reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
@@ -581,7 +690,7 @@ sidebar.addEventListener('click', (event) => {
   }
 });
 
-const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', acessos: 'Controle de acesso' };
+const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso' };
 
 async function accessApi(method = 'GET', body = null) {
   const session = getSession();
@@ -661,7 +770,7 @@ function updateAuthUi() {
 }
 
 async function showView(viewName, updateHash = true) {
-  if (['acoes', 'vendedores', 'acessos'].includes(viewName) && !getSession()) {
+  if (['acoes', 'vendedores', 'bd-vendedores', 'acessos'].includes(viewName) && !getSession()) {
     openAuth(viewName);
     return;
   }
@@ -680,6 +789,7 @@ async function showView(viewName, updateHash = true) {
   });
   currentViewLabel.textContent = viewLabels[viewName] || 'Gestão de vendedores';
   if (viewName === 'vendedores') await loadSellers();
+  if (viewName === 'bd-vendedores') await loadArchivedSellers();
   if (viewName === 'acessos') await loadAccessUsers();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
@@ -746,8 +856,10 @@ refreshAccessButton.addEventListener('click', loadAccessUsers);
 logoutButton.addEventListener('click', () => {
   sessionStorage.removeItem(authStorageKey);
   sellersCache = [];
+  archivedSellersCache = [];
   selectedSellerId = null;
   selectedSellerIds.clear();
+  selectedArchivedIds.clear();
   updateAuthUi();
   showView('cadastro');
   showToast('Acesso encerrado.');
