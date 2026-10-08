@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gestão Agente Autorizado — formulário de cadastro de novos vendedores.">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Gestão Agente Autorizado | Cadastro de vendedor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <aside class="sidebar" aria-label="Navegação principal">
+    <a class="brand" href="#top" aria-label="Gestão Agente Autorizado — início">
+      <span class="brand-mark">G</span>
+      <span class="brand-copy"><strong>GESTÃO</strong><small>AGENTE AUTORIZADO</small></span>
+    </a>
+    <nav>
+      <p class="nav-label">MENU PRINCIPAL</p>
+      <a class="nav-item active" href="#cadastro" data-view-link="cadastro" aria-current="page">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/></svg></span><span>Cadastros</span>
+      </a>
+      <a class="nav-item" href="#acoes" data-view-link="acoes">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Revisão</span>
+      </a>
+      <a class="nav-item" href="#vendedores" data-view-link="vendedores">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span>
+      </a>
+    </nav>
+    <div class="privacy-note">
+      <span class="status-dot" aria-hidden="true"></span>
+      <div><strong>Preenchimento local</strong><small>Os dados não são enviados.</small></div>
+    </div>
+  </aside>
+
+  <main id="top">
+    <header class="topbar">
+      <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
+      <div class="topbar-path"><span>Gestão Agente Autorizado</span><b>/</b><strong id="current-view-label">Novo vendedor</strong></div>
+      <div class="topbar-brand"><span>GESTÃO</span><strong>AGENTE AUTORIZADO</strong></div>
+    </header>
+
+    <div class="page-shell">
+      <section class="app-view active" id="view-cadastro" data-view="cadastro">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="overline">GESTÃO DE ACESSOS · NOVO REGISTRO</p>
+          <h1 id="page-title">Criação de cadastro</h1>
+          <p>Revise os dados do vendedor e copie o cadastro pronto para encaminhamento.</p>
+        </div>
+        <div class="hero-badge" aria-label="Código da operação JFZ4">
+          <span>Código</span><strong>JFZ4</strong>
+        </div>
+      </section>
+
+      <nav class="cockpit-shortcuts" aria-label="Etapas do cadastro">
+        <a class="shortcut active" href="#dados-pessoais"><span>01</span>Dados pessoais</a>
+        <a class="shortcut" href="#empresa"><span>02</span>Empresa</a>
+        <a class="shortcut" href="#acesso"><span>03</span>Acesso</a>
+        <a class="shortcut" href="#sgt3"><span>04</span>Identidade SGT3</a>
+        <a class="shortcut" href="#netsales"><span>05</span>NetSales</a>
+      </nav>
+
+      <form id="cadastro" autocomplete="on" novalidate>
+        <section class="form-card" id="dados-pessoais" aria-labelledby="title-pessoal">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">01</span>
+            <div><h2 id="title-pessoal">Dados pessoais</h2><p>Informações de identificação e contato.</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field span-2">Nome completo<input name="nome" placeholder="Digite o nome completo" required autocomplete="name"></label>
+            <label class="field">CPF<input name="cpf" placeholder="000.000.000-00" required inputmode="numeric" autocomplete="off"></label>
+            <label class="field">RG<input name="rg" placeholder="Digite o RG" required inputmode="numeric" autocomplete="off"></label>
+            <label class="field">Data de nascimento<input name="nascimento" type="date" required autocomplete="bday"></label>
+            <label class="field">Cidade / UF<input name="cidade" placeholder="Cidade - UF" required autocomplete="address-level2"></label>
+            <label class="field">E-mail<input name="email" type="email" placeholder="nome@empresa.com.br" required autocomplete="email"></label>
+            <label class="field important">Celular Claro<span class="field-hint">Use somente número da Claro</span><input name="celular" placeholder="(00) 00000-0000" required inputmode="tel" autocomplete="tel"></label>
+          </div>
+        </section>
+
+        <section class="form-card" id="empresa" aria-labelledby="title-empresa">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">02</span>
+            <div><h2 id="title-empresa">Empresa e função</h2><p>Vínculo comercial do novo vendedor.</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field">CNPJ<input name="cnpj" value="08.790.524/0011-07" required inputmode="numeric"></label>
+            <label class="field">Código<input name="codigo" value="JFZ4" required></label>
+            <label class="field">Regional
+              <select name="regional" required>
+                <option>BA/SE</option><option selected>CO</option><option>MG</option><option>NE</option><option>NO</option>
+                <option>PR/SC</option><option>RJ/ES</option><option>RS</option><option>SP1</option><option>SP2</option>
+              </select>
+            </label>
+            <label class="field span-2">Razão social<input name="razao_social" value="TELEMAIS TELEFONIA LTDA" required autocomplete="organization"></label>
+            <label class="field">Cargo<input name="cargo" value="VENDEDOR" required autocomplete="organization-title"></label>
+            <label class="field">Possui formação inicial?
+              <select name="formacao_inicial" required><option value="SIM" selected>Sim</option><option value="NÃO">Não</option></select>
+            </label>
+          </div>
+        </section>
+
+        <section class="form-card" id="acesso" aria-labelledby="title-acesso">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">03</span>
+            <div><h2 id="title-acesso">Cadastro de login</h2><p>Defina o identificador que será usado no primeiro acesso.</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field">Login<input name="login" placeholder="Digite o login" autocomplete="username"></label>
+            <label class="field">E-mail de acesso<input name="email_acesso" type="email" placeholder="nome@empresa.com.br" autocomplete="email"></label>
+          </div>
+          <div class="info-box"><span aria-hidden="true">i</span><p>A senha não é coletada neste formulário. Oriente o usuário a criá-la diretamente no ambiente seguro de acesso.</p></div>
+        </section>
+
+        <section class="form-card" id="sgt3" aria-labelledby="title-sgt3">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">04</span>
+            <div><h2 id="title-sgt3">Identidade SGT3</h2><p>Informações complementares para criação de identidade de terceiro.</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field">Tipo de usuário<select name="sgt_tipo_usuario" required><option>TERCEIRO GERAL</option><option>TERCEIRO CALL CENTER</option><option selected>TERCEIRO COMERCIAL</option></select></label>
+            <label class="field">Acesso físico<select name="sgt_acesso_fisico" required><option selected>NÃO</option><option>SIM (CLARO)</option><option>SIM (NET)</option><option>SIM (EMBRATEL)</option><option>SIM (CLARO + NET)</option><option>SIM (CLARO + EMBRATEL)</option><option>SIM (CLARO + NET + EMBRATEL)</option><option>SIM (NET + EMBRATEL)</option></select></label>
+            <label class="field">Acesso lógico<select name="sgt_acesso_logico" required><option>NÃO</option><option selected>SIM (CLARO + NET)</option><option>SIM (CLARO + NET + EMBRATEL)</option></select></label>
+            <label class="field">Estação de trabalho<select name="sgt_estacao" required><option>SIM</option><option selected>NÃO</option></select></label>
+            <label class="field">Prédio / site<input name="sgt_site" value="NÃO SE APLICA" required></label>
+            <label class="field">Localização no prédio<input name="sgt_localizacao" placeholder="Andar, bloco ou janela"></label>
+            <label class="field">Qualificação<select name="sgt_qualificacao" required><option>FUNDAMENTAL</option><option selected>MÉDIO</option><option>SUPERIOR</option></select></label>
+            <label class="field">Segmento da empresa<select name="sgt_segmento" required><option>AACE</option><option selected>AA - COMERCIAL</option><option>AA - TÉCNICO</option><option>AA - TELEVENDAS</option><option>CALL CENTER - ATENDIMENTO</option><option>CALL CENTER - COBRANÇA</option><option>CALL CENTER - TELEVENDAS</option><option>EMPREITEIRA</option><option>ENGENHARIA</option><option>SERVIÇOS CORPORATIVOS</option><option>TI</option><option>OUTROS</option></select></label>
+            <label class="field">Empresa quarterizada?<select name="sgt_quarterizada" required><option>SIM</option><option selected>NÃO</option></select></label>
+            <label class="field">Regime de contratação<select name="sgt_regime" required><option selected>CLT</option><option>PJ (MEI)</option><option>QUARTERIZADO</option><option>AUTÔNOMO</option><option>ESTAGIÁRIO</option></select></label>
+            <label class="field">Número do contrato<input name="sgt_contrato" placeholder="Opcional"></label>
+            <label class="field">Vigência do contrato<input name="sgt_vigencia" type="date"></label>
+            <label class="field">Unidade de negócio<select name="sgt_unidade" required><option selected>UMP (CLARO)</option><option>UMR (NET)</option><option>UME (EMBRATEL)</option><option>SUPORTE AO NEGOCIO</option></select></label>
+            <label class="field">Categoria de serviço Claro/NET<select name="sgt_categoria_claro" required><option>TERCEIRIZAÇÃO</option><option>PROJETO</option><option>SERVIÇO</option><option>TEMPORÁRIO</option><option selected>PARCERIA COMERCIAL</option><option>SUPORTE</option></select></label>
+            <label class="field">Categoria de serviço Embratel<select name="sgt_categoria_embratel" required><option>SEGURANÇA</option><option>MANUTENÇÃO</option><option>CONSERVAÇÃO</option><option>COPEIRAGEM</option><option>CONSULTORIA/AUTÔNOMO</option><option>SERVIÇOS DE APOIO</option><option>APOIO A PROCESSO DE INFORMÁTICA</option><option>ENGENHARIA/PROJETOS</option><option>REVENDAS LIVRE</option><option selected>VENDEDORES LOJA CLARO_NET_EMBRATEL</option><option>CALL CENTER (ATENTO)</option></select></label>
+            <label class="field">Regional SGT3<select name="sgt_regional" required><option>CLARO MATRIZ - MATRIZ SÃO PAULO</option><option>CLARO BS - BAHIA / SERGIPE</option><option selected>CLARO CO - CENTRO OESTE</option><option>CLARO MG - MINAS GERAIS</option><option>CLARO NE - NORDESTE</option><option>CLARO NO - NORTE</option><option>CLARO OS - PARANÁ / SANTA CATARINA</option><option>CLARO RJ - MATRIZ RIO DE JANEIRO</option><option>CLARO RJ - REGIONAL RIO DE JANEIRO</option><option>CLARO RS - RIO GRANDE DO SUL</option><option>CLARO SI - SÃO PAULO / INTERIOR</option><option>CLARO SP - REGIONAL SÃO PAULO</option></select></label>
+            <label class="field">CPF do gestor responsável<input name="sgt_cpf_gestor" required inputmode="numeric" placeholder="000.000.000-00"></label>
+            <label class="field">Nome do gestor responsável<input name="sgt_nome_gestor" required placeholder="Coordenador, gerente ou superior"></label>
+          </div>
+          <div class="info-box"><span aria-hidden="true">i</span><p>Para carregar no SGT3, abra o arquivo baixado e salve a aba “SGT3 - PREENCHER” no formato CSV separado por vírgulas.</p></div>
+        </section>
+
+        <section class="form-card" id="netsales" aria-labelledby="title-netsales">
+          <div class="section-heading">
+            <span class="section-icon" aria-hidden="true">05</span>
+            <div><h2 id="title-netsales">Acesso NetSales</h2><p>Informações para concessão de acesso ao NetSMS e NetSales.</p></div>
+          </div>
+          <div class="field-grid">
+            <label class="field span-2">Tipo de solicitação
+              <select name="netsales_tipo" required>
+                <option>CRIAÇÃO: ACESSO NET SMS</option>
+                <option>CRIAÇÃO: ACESSO NETSMS E NETSALES</option>
+                <option selected>CRIAÇÃO: ACESSO NETSMS E NETSALES + CAMPO VENDEDOR</option>
+                <option>CRIAÇÃO: SOMENTE CAMPO VENDEDOR NETSALES</option>
+                <option>ALTERAÇÃO: TROCA DE PERFIL NETSMS</option>
+                <option>ALTERAÇÃO:TROCA DE PERFIL NETSALES</option>
+                <option>ALTERAÇÃO:TROCA DE PERFIL NETSALES/NETSMS</option>
+                <option>ALTERAÇÃO: TROCA DE USUARIO PARA OUTRA EQUIPE</option>
+                <option>ALTERAÇÃO: TROCA DE USUARIO PARA OUTRA EQUIPE + PERFIL NETSMS E NETSALES</option>
+                <option>ALTERAÇÃO:TROCA DE SUPERVISOR RESPONSAVEL DA EQUIPE</option>
+              </select>
+            </label>
+            <label class="field">Diretoria / canal<input name="netsales_diretoria" value="COMERCIAL / AGENTE AUTORIZADO" required></label>
+            <label class="field">Equipe de vendas<input name="netsales_equipe" placeholder="Nome da equipe padrão" required></label>
+            <label class="field">Tipo de empresa<select name="netsales_tipo_empresa" required><option>PRÓPRIA</option><option selected>TERCEIRA</option></select></label>
+            <label class="field">Login do supervisor<input name="netsales_supervisor_login" placeholder="Login NET ativo" required></label>
+            <label class="field">Nome do supervisor<input name="netsales_supervisor_nome" placeholder="Responsável pela equipe" required></label>
+            <label class="field">Perfil NetSales<select name="netsales_perfil" required><option>ASSISTENTE_CANAL</option><option>BACKOFFICE_CRN</option><option>COMERCIAL_BKO_BACKLOG</option><option>GESTOR</option><option>PLANEJAMENTO COMERCIAL</option><option>SUPERVISOR</option><option selected>VENDEDOR</option><option>VENDEDOR_EBT</option><option>NÃO SE APLICA</option></select></label>
+            <label class="field">Autenticação DUO<select name="netsales_duo" required><option selected>DUO MOBILE</option><option>DUO DESKTOP</option></select></label>
+            <label class="field">Base de acesso<input name="netsales_base" value="TODAS AS BASES" required></label>
+            <label class="field">Cidade de atuação<input name="netsales_cidade" value="Mineiros" required></label>
+            <label class="field">Retira Grupo Citrix?<select name="netsales_retira_citrix" required><option>SIM</option><option selected>NÃO</option></select></label>
+            <label class="field">Suporte OC<select name="netsales_suporte_oc" required><option>SIM</option><option selected>NÃO</option></select></label>
+          </div>
+          <div class="info-box"><span aria-hidden="true">i</span><p>O arquivo será gerado com os dados na primeira linha disponível da aba “CADASTRO”, mantendo fórmulas, listas e orientações do modelo V23.</p></div>
+        </section>
+
+        <div class="action-bar">
+          <div><strong>Salvar cadastro do vendedor</strong><span id="save-status">Confira os campos antes de salvar.</span></div>
+          <div class="actions">
+            <button class="button secondary" type="reset">Restaurar</button>
+            <button class="button save" id="save-button" type="button"><span aria-hidden="true">▣</span> Salvar cadastro</button>
+            <button class="button primary" type="submit"><span aria-hidden="true">✓</span> Copiar cadastro</button>
+          </div>
+        </div>
+
+      </form>
+      </section>
+
+      <section class="app-view" id="view-acoes" data-view="acoes" hidden>
+        <header class="view-header">
+          <p class="overline">GESTÃO DE ACESSOS · REVISÃO</p>
+          <h1>Cadastro pronto para revisão</h1>
+          <p>Confira os dados preenchidos, salve o vendedor ou gere os arquivos necessários.</p>
+        </header>
+        <div class="review-card">
+          <div class="review-summary">
+            <span class="section-icon" aria-hidden="true">✓</span>
+            <div><strong id="review-name">Novo vendedor</strong><span>Escolha a planilha que deseja gerar.</span></div>
+          </div>
+          <div class="actions review-actions">
+            <button class="button spreadsheet" id="plan56-button" type="button"><span aria-hidden="true">↓</span> Baixar Plan 5 + 6</button>
+            <button class="button spreadsheet" id="sgt3-button" type="button"><span aria-hidden="true">↓</span> Baixar SGT3</button>
+            <button class="button spreadsheet" id="netsales-button" type="button"><span aria-hidden="true">↓</span> Baixar NetSales</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-view" id="view-vendedores" data-view="vendedores" hidden>
+        <header class="view-header seller-heading">
+          <div><p class="overline">GESTÃO DE ACESSOS · CADASTROS SALVOS</p><h1>Vendedores cadastrados</h1><p>Selecione um vendedor para revisar os dados ou gerar as planilhas.</p></div>
+          <div class="seller-count"><span>Total</span><strong id="seller-count">0</strong></div>
+        </header>
+        <div class="seller-toolbar">
+          <label class="seller-search">Buscar vendedor<input id="seller-search" type="search" placeholder="Nome, CPF, código ou cidade"></label>
+          <button class="button primary" type="button" data-view-target="cadastro">Novo cadastro</button>
+        </div>
+        <div class="seller-card">
+          <div class="seller-table-wrap">
+            <table class="seller-table">
+              <thead><tr><th scope="col">Selecionar</th><th scope="col">Vendedor</th><th scope="col">CPF</th><th scope="col">Código</th><th scope="col">Cidade</th><th scope="col">Salvo em</th></tr></thead>
+              <tbody id="seller-list"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="seller-empty"><strong>Nenhum vendedor cadastrado</strong><span>Salve um cadastro para que ele apareça nesta lista.</span></div>
+          <div class="seller-actions">
+            <span id="selected-seller-status">Selecione um vendedor para continuar.</span>
+            <div class="actions">
+              <button class="button secondary" id="edit-seller-button" type="button" disabled>Abrir cadastro</button>
+              <button class="button spreadsheet" id="seller-plan56-button" type="button" disabled>Baixar Plan 5 + 6</button>
+              <button class="button spreadsheet" id="seller-sgt3-button" type="button" disabled>Baixar SGT3</button>
+              <button class="button primary" id="seller-netsales-button" type="button" disabled>Baixar NetSales</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="./assets/jszip.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
