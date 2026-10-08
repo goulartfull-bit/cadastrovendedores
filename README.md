@@ -10,6 +10,6 @@ https://goulartfull-bit.github.io/cadastrovendedores/
 
 ## Privacidade
 
-Os cadastros são armazenados somente no navegador utilizado. Para sincronização entre celular e computador será necessário conectar o portal a um banco de dados online.
+Os cadastros são armazenados no Supabase e sincronizados entre celular e computador. O formulário de Cadastro é público; as áreas Revisão e Vendedores exigem autenticação.
 
 O formulário público não contém senhas nem dados pessoais preenchidos no código-fonte.

@@ -32,7 +32,7 @@
     </nav>
     <div class="privacy-note">
       <span class="status-dot" aria-hidden="true"></span>
-      <div><strong>Preenchimento local</strong><small>Os dados não são enviados.</small></div>
+      <div><strong>Sincronização ativa</strong><small>Cadastros salvos com segurança online.</small></div>
     </div>
   </aside>
 
@@ -40,6 +40,7 @@
     <header class="topbar">
       <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
       <div class="topbar-path"><span>Gestão Agente Autorizado</span><b>/</b><strong id="current-view-label">Novo vendedor</strong></div>
+      <button class="logout-button" id="logout-button" type="button" hidden>Sair</button>
       <div class="topbar-brand"><span>GESTÃO</span><strong>AGENTE AUTORIZADO</strong></div>
     </header>
 
@@ -241,6 +242,23 @@
   </main>
 
   <div class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <div class="auth-modal" id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+    <div class="auth-card">
+      <span class="auth-mark" aria-hidden="true">G</span>
+      <p class="overline">ÁREA RESTRITA</p>
+      <h2 id="auth-title">Acesso administrativo</h2>
+      <p>Entre para acessar Revisão, Vendedores e geração de planilhas.</p>
+      <form id="auth-form">
+        <label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label>
+        <label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <span class="auth-error" id="auth-error" role="alert"></span>
+        <div class="actions">
+          <button class="button secondary" id="auth-cancel" type="button">Cancelar</button>
+          <button class="button primary" type="submit">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="./app.js"></script>
 </body>

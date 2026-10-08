@@ -18,9 +18,17 @@ const sellerPlan56Button = document.querySelector('#seller-plan56-button');
 const sellerSgt3Button = document.querySelector('#seller-sgt3-button');
 const sellerNetsalesButton = document.querySelector('#seller-netsales-button');
 const currentViewLabel = document.querySelector('#current-view-label');
-const storageKey = 'odin-cadastros-vendedores';
-const legacyStorageKey = 'odin-cadastro-vendedor';
+const authModal = document.querySelector('#auth-modal');
+const authForm = document.querySelector('#auth-form');
+const authError = document.querySelector('#auth-error');
+const authCancel = document.querySelector('#auth-cancel');
+const logoutButton = document.querySelector('#logout-button');
+const supabaseUrl = 'https://vfkujizbdrmehnzrltjn.supabase.co';
+const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
+const authStorageKey = 'gestao-agente-autorizado-session';
+let sellersCache = [];
 let selectedSellerId = null;
+let pendingProtectedView = null;
 sidebar.classList.remove('open');
 menuButton.setAttribute('aria-expanded', 'false');
 
@@ -72,25 +80,71 @@ async function copyCadastro() {
   return { status: 'copied', fields: Object.keys(data).length };
 }
 
-function saveCadastro() {
+function getSession() {
+  try {
+    const session = JSON.parse(sessionStorage.getItem(authStorageKey));
+    if (!session?.access_token || (session.expires_at && Date.now() >= session.expires_at * 1000)) {
+      sessionStorage.removeItem(authStorageKey);
+      return null;
+    }
+    return session;
+  } catch {
+    sessionStorage.removeItem(authStorageKey);
+    return null;
+  }
+}
+
+async function apiRequest(path, options = {}, requireAuth = false) {
+  const session = getSession();
+  if (requireAuth && !session) throw new Error('Faça login para acessar os cadastros.');
+  const response = await fetch(`${supabaseUrl}${path}`, {
+    ...options,
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${session?.access_token || supabaseKey}`,
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.message || detail.error_description || 'Não foi possível concluir a operação.');
+  }
+  if (response.status === 204) return null;
+  return response.json().catch(() => null);
+}
+
+async function saveCadastro() {
   if (!validateBaseFields()) return;
   const data = Object.fromEntries(new FormData(form));
   const savedAt = new Date().toISOString();
+  saveButton.disabled = true;
+  saveStatus.textContent = 'Salvando com segurança...';
   try {
-    const sellers = getSavedSellers();
-    const cpf = onlyDigits(data.cpf);
-    const existingIndex = sellers.findIndex((seller) => onlyDigits(seller.data.cpf) === cpf);
-    const record = { id: existingIndex >= 0 ? sellers[existingIndex].id : `${Date.now()}-${Math.random().toString(16).slice(2)}`, data, savedAt };
-    if (existingIndex >= 0) sellers.splice(existingIndex, 1, record);
-    else sellers.unshift(record);
-    localStorage.setItem(storageKey, JSON.stringify(sellers));
-    selectedSellerId = record.id;
-    saveStatus.textContent = `Salvo neste navegador às ${new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`;
+    const session = getSession();
+    const existing = session && selectedSellerId ? selectedSeller() : null;
+    if (existing) {
+      await apiRequest(`/rest/v1/vendedores?id=eq.${encodeURIComponent(existing.id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ data, updated_at: savedAt })
+      }, true);
+    } else {
+      await apiRequest('/rest/v1/vendedores', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ data })
+      });
+    }
+    saveStatus.textContent = `Salvo online às ${new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`;
     reviewName.textContent = data.nome || 'Novo vendedor';
-    renderSellers();
-    showToast('Cadastro salvo com sucesso.');
-  } catch {
-    showToast('Não foi possível salvar neste navegador.');
+    if (session) await loadSellers();
+    showToast('Cadastro salvo e sincronizado com sucesso.');
+  } catch (error) {
+    saveStatus.textContent = 'Não foi possível salvar. Tente novamente.';
+    showToast(error.message || 'Não foi possível salvar o cadastro.');
+  } finally {
+    saveButton.disabled = false;
   }
 }
 
@@ -106,22 +160,23 @@ function validateBaseFields() {
 }
 
 function getSavedSellers() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
-    return Array.isArray(saved) ? saved.filter((item) => item?.id && item?.data) : [];
-  } catch {
-    localStorage.removeItem(storageKey);
-    return [];
-  }
+  return sellersCache;
 }
 
-function migrateLegacyCadastro() {
-  if (getSavedSellers().length) return;
+async function loadSellers() {
+  if (!getSession()) {
+    sellersCache = [];
+    renderSellers();
+    return;
+  }
   try {
-    const legacy = JSON.parse(localStorage.getItem(legacyStorageKey));
-    if (!legacy?.data) return;
-    localStorage.setItem(storageKey, JSON.stringify([{ id: `legacy-${Date.now()}`, data: legacy.data, savedAt: legacy.savedAt || new Date().toISOString() }]));
-  } catch {}
+    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at&order=created_at.desc', {}, true);
+    sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at }));
+    if (selectedSellerId && !sellersCache.some((seller) => seller.id === selectedSellerId)) selectedSellerId = null;
+    renderSellers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível carregar os vendedores.');
+  }
 }
 
 function selectedSeller() {
@@ -421,7 +476,23 @@ sidebar.addEventListener('click', (event) => {
 
 const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados' };
 
-function showView(viewName, updateHash = true) {
+function openAuth(viewName) {
+  pendingProtectedView = viewName;
+  authError.textContent = '';
+  authModal.hidden = false;
+  window.setTimeout(() => authForm.elements.email.focus(), 0);
+}
+
+function updateAuthUi() {
+  const signedIn = Boolean(getSession());
+  logoutButton.hidden = !signedIn;
+}
+
+async function showView(viewName, updateHash = true) {
+  if (['acoes', 'vendedores'].includes(viewName) && !getSession()) {
+    openAuth(viewName);
+    return;
+  }
   const target = document.querySelector(`[data-view="${viewName}"]`);
   if (!target) return;
   document.querySelectorAll('.app-view').forEach((view) => {
@@ -436,20 +507,60 @@ function showView(viewName, updateHash = true) {
     else link.removeAttribute('aria-current');
   });
   currentViewLabel.textContent = viewLabels[viewName] || 'Gestão de vendedores';
-  if (viewName === 'vendedores') renderSellers();
+  if (viewName === 'vendedores') await loadSellers();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 document.querySelectorAll('[data-view-link], [data-view-target]').forEach((control) => {
-  control.addEventListener('click', (event) => {
+  control.addEventListener('click', async (event) => {
     event.preventDefault();
-    showView(control.dataset.viewLink || control.dataset.viewTarget);
+    await showView(control.dataset.viewLink || control.dataset.viewTarget);
   });
 });
 
-migrateLegacyCadastro();
+authForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = authForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  authError.textContent = 'Verificando acesso...';
+  try {
+    const credentials = Object.fromEntries(new FormData(authForm));
+    const session = await apiRequest('/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      body: JSON.stringify(credentials)
+    });
+    sessionStorage.setItem(authStorageKey, JSON.stringify(session));
+    authModal.hidden = true;
+    authForm.reset();
+    updateAuthUi();
+    const destination = pendingProtectedView || 'vendedores';
+    pendingProtectedView = null;
+    await showView(destination);
+    showToast('Acesso autorizado.');
+  } catch {
+    authError.textContent = 'Login ou senha inválidos.';
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+authCancel.addEventListener('click', () => {
+  authModal.hidden = true;
+  pendingProtectedView = null;
+});
+
+logoutButton.addEventListener('click', () => {
+  sessionStorage.removeItem(authStorageKey);
+  sellersCache = [];
+  selectedSellerId = null;
+  updateAuthUi();
+  showView('cadastro');
+  showToast('Acesso encerrado.');
+});
+
+updateAuthUi();
 renderSellers();
 showView(location.hash.replace('#', '') || 'cadastro', false);
 
