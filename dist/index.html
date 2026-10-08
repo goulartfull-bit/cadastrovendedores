@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261008-5">
+  <link rel="stylesheet" href="./styles.css?v=20261008-6">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -28,6 +28,9 @@
       </a>
       <a class="nav-item" href="#vendedores" data-view-link="vendedores">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span>
+      </a>
+      <a class="nav-item" href="#acessos" data-view-link="acessos">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span>
       </a>
     </nav>
     <div class="privacy-note">
@@ -77,7 +80,7 @@
             <label class="field">RG<input name="rg" placeholder="Digite o RG" required inputmode="numeric" autocomplete="off"></label>
             <label class="field">Data de nascimento<input name="nascimento" type="date" required autocomplete="bday"></label>
             <label class="field">Cidade / UF<input name="cidade" placeholder="Cidade - UF" required autocomplete="address-level2"></label>
-            <label class="field">E-mail<input name="email" type="email" placeholder="nome@empresa.com.br" required autocomplete="email"></label>
+            <label class="field">E-mail Loja<input name="email" type="email" placeholder="loja@empresa.com.br" required autocomplete="email"></label>
             <label class="field important">Celular Claro<span class="field-hint">Use somente número da Claro</span><input name="celular" placeholder="(00) 00000-0000" required inputmode="tel" autocomplete="tel"></label>
           </div>
         </section>
@@ -241,6 +244,37 @@
           </div>
         </div>
       </section>
+
+      <section class="app-view" id="view-acessos" data-view="acessos" hidden>
+        <header class="view-header access-heading">
+          <div><p class="overline">ADMINISTRAÇÃO · CONTROLE DE ACESSO</p><h1>Usuários administrativos</h1><p>Cadastre e gerencie quem pode acessar Revisão, Vendedores e as planilhas.</p></div>
+          <div class="seller-count"><span>Ativos</span><strong id="access-count">0</strong></div>
+        </header>
+        <div class="access-grid">
+          <section class="form-card access-create-card" aria-labelledby="access-create-title">
+            <div class="section-heading">
+              <span class="section-icon" aria-hidden="true">＋</span>
+              <div><h2 id="access-create-title">Cadastrar novo usuário</h2><p>Crie um acesso administrativo com senha provisória.</p></div>
+            </div>
+            <form id="access-form" autocomplete="off">
+              <label class="field">E-mail do usuário<input name="email" type="email" placeholder="usuario@empresa.com.br" autocomplete="off" required></label>
+              <label class="field">Senha provisória<input name="password" type="password" minlength="8" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" required></label>
+              <button class="button primary" type="submit">Cadastrar usuário</button>
+            </form>
+            <div class="info-box"><span aria-hidden="true">i</span><p>A senha é enviada diretamente ao Supabase e não fica gravada no código público do site.</p></div>
+          </section>
+          <section class="seller-card access-list-card" aria-labelledby="access-list-title">
+            <div class="access-list-heading"><div><h2 id="access-list-title">Acessos cadastrados</h2><p>Ative, desative ou exclua contas administrativas.</p></div><button class="button secondary" id="refresh-access-button" type="button">Atualizar</button></div>
+            <div class="seller-table-wrap">
+              <table class="seller-table access-table">
+                <thead><tr><th scope="col">Usuário</th><th scope="col">Status</th><th scope="col">Cadastro</th><th scope="col">Ações</th></tr></thead>
+                <tbody id="access-list"></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="access-empty" hidden><strong>Nenhum usuário encontrado</strong><span>Cadastre o primeiro acesso administrativo.</span></div>
+          </section>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -250,7 +284,7 @@
       <span class="auth-mark" aria-hidden="true">G</span>
       <p class="overline">ÁREA RESTRITA</p>
       <h2 id="auth-title">Acesso administrativo</h2>
-      <p>Entre para acessar Revisão, Vendedores e geração de planilhas.</p>
+      <p>Entre para acessar Revisão, Vendedores, Controle de acesso e geração de planilhas.</p>
       <form id="auth-form">
         <label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label>
         <label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label>
@@ -263,6 +297,6 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-5"></script>
+  <script src="./app.js?v=20261008-6"></script>
 </body>
 </html>

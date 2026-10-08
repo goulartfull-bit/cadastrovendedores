@@ -27,6 +27,11 @@ const authForm = document.querySelector('#auth-form');
 const authError = document.querySelector('#auth-error');
 const authCancel = document.querySelector('#auth-cancel');
 const logoutButton = document.querySelector('#logout-button');
+const accessForm = document.querySelector('#access-form');
+const accessList = document.querySelector('#access-list');
+const accessEmpty = document.querySelector('#access-empty');
+const accessCount = document.querySelector('#access-count');
+const refreshAccessButton = document.querySelector('#refresh-access-button');
 const supabaseUrl = 'https://vfkujizbdrmehnzrltjn.supabase.co';
 const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
 const authStorageKey = 'gestao-agente-autorizado-session';
@@ -34,6 +39,7 @@ let sellersCache = [];
 let selectedSellerId = null;
 const selectedSellerIds = new Set();
 let pendingProtectedView = null;
+let accessUsers = [];
 sidebar.classList.remove('open');
 menuButton.setAttribute('aria-expanded', 'false');
 
@@ -52,7 +58,7 @@ function cadastroText(data) {
     `CPF: ${data.cpf || ''}`,
     `RG: ${data.rg || ''}`,
     `NASCIMENTO: ${date}`,
-    `EMAIL: ${data.email || ''}`,
+    `E-MAIL LOJA: ${data.email || ''}`,
     `CELULAR DA CLARO: ${data.celular || ''}`,
     `CIDADE: ${data.cidade || ''}`,
     `CNPJ: ${data.cnpj || ''}`,
@@ -575,7 +581,72 @@ sidebar.addEventListener('click', (event) => {
   }
 });
 
-const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados' };
+const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', acessos: 'Controle de acesso' };
+
+async function accessApi(method = 'GET', body = null) {
+  const session = getSession();
+  if (!session) throw new Error('Faça login para gerenciar os acessos.');
+  return apiRequest('/functions/v1/manage-users', {
+    method,
+    body: body ? JSON.stringify(body) : undefined
+  }, true);
+}
+
+function formatAccessDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR');
+}
+
+function renderAccessUsers() {
+  accessList.replaceChildren();
+  accessCount.textContent = String(accessUsers.filter((user) => user.active).length);
+  for (const user of accessUsers) {
+    const row = document.createElement('tr');
+    const statusClass = user.active ? 'active' : 'inactive';
+    const statusText = user.active ? 'Ativo' : 'Desativado';
+    row.innerHTML = `<td><strong>${escapeHtml(user.email || 'Sem e-mail')}</strong><small>${user.last_sign_in_at ? `Último acesso: ${formatAccessDate(user.last_sign_in_at)}` : 'Ainda não acessou'}</small></td><td><span class="access-status ${statusClass}">${statusText}</span></td><td>${formatAccessDate(user.created_at)}</td><td><div class="access-row-actions"><button class="button secondary access-toggle" type="button">${user.active ? 'Desativar' : 'Ativar'}</button><button class="button danger access-delete" type="button">Excluir</button></div></td>`;
+    row.querySelector('.access-toggle').addEventListener('click', () => toggleAccessUser(user));
+    row.querySelector('.access-delete').addEventListener('click', () => deleteAccessUser(user));
+    accessList.appendChild(row);
+  }
+  accessEmpty.hidden = accessUsers.length > 0;
+}
+
+async function loadAccessUsers() {
+  refreshAccessButton.disabled = true;
+  try {
+    const result = await accessApi();
+    accessUsers = result?.users || [];
+    renderAccessUsers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível carregar os usuários.');
+  } finally {
+    refreshAccessButton.disabled = false;
+  }
+}
+
+async function toggleAccessUser(user) {
+  const action = user.active ? 'desativar' : 'ativar';
+  if (!window.confirm(`Deseja ${action} o acesso de ${user.email}?`)) return;
+  try {
+    await accessApi('PATCH', { id: user.id, email: user.email, active: !user.active });
+    showToast(`Acesso ${user.active ? 'desativado' : 'ativado'} com sucesso.`);
+    await loadAccessUsers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível alterar o acesso.');
+  }
+}
+
+async function deleteAccessUser(user) {
+  if (!window.confirm(`Excluir permanentemente o usuário ${user.email}? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await accessApi('DELETE', { id: user.id, email: user.email });
+    showToast('Usuário excluído com sucesso.');
+    await loadAccessUsers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível excluir o usuário.');
+  }
+}
 
 function openAuth(viewName) {
   pendingProtectedView = viewName;
@@ -590,7 +661,7 @@ function updateAuthUi() {
 }
 
 async function showView(viewName, updateHash = true) {
-  if (['acoes', 'vendedores'].includes(viewName) && !getSession()) {
+  if (['acoes', 'vendedores', 'acessos'].includes(viewName) && !getSession()) {
     openAuth(viewName);
     return;
   }
@@ -609,6 +680,7 @@ async function showView(viewName, updateHash = true) {
   });
   currentViewLabel.textContent = viewLabels[viewName] || 'Gestão de vendedores';
   if (viewName === 'vendedores') await loadSellers();
+  if (viewName === 'acessos') await loadAccessUsers();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -651,6 +723,25 @@ authCancel.addEventListener('click', () => {
   authModal.hidden = true;
   pendingProtectedView = null;
 });
+
+accessForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submit = accessForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    const payload = Object.fromEntries(new FormData(accessForm));
+    await accessApi('POST', payload);
+    accessForm.reset();
+    showToast('Novo usuário cadastrado com sucesso.');
+    await loadAccessUsers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível cadastrar o usuário.');
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+refreshAccessButton.addEventListener('click', loadAccessUsers);
 
 logoutButton.addEventListener('click', () => {
   sessionStorage.removeItem(authStorageKey);
