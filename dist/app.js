@@ -245,8 +245,7 @@ function updateSellerActions() {
 async function downloadSelected(generator, triggerButton) {
   const sellers = selectedSellers();
   if (!sellers.length) return;
-  for (const seller of sellers) await generator(seller.data, triggerButton);
-  showToast(`${sellers.length} arquivo${sellers.length > 1 ? 's' : ''} gerado${sellers.length > 1 ? 's' : ''}.`);
+  await generator(sellers.map((seller) => seller.data), triggerButton);
 }
 
 function openSeller() {
@@ -295,6 +294,32 @@ function setSpreadsheetCell(documentXml, reference, value, numeric = false) {
   cell.appendChild(inlineString);
 }
 
+function spreadsheetReferenceAtRow(reference, rowNumber) {
+  return `${reference.replace(/\d+$/, '')}${rowNumber}`;
+}
+
+function ensureSpreadsheetRow(documentXml, sourceRowNumber, targetRowNumber) {
+  if (sourceRowNumber === targetRowNumber) return;
+  const namespace = documentXml.documentElement.namespaceURI;
+  const rows = [...documentXml.getElementsByTagNameNS(namespace, 'row')];
+  if (rows.some((row) => Number(row.getAttribute('r')) === targetRowNumber)) return;
+  const sourceRow = rows.find((row) => Number(row.getAttribute('r')) === sourceRowNumber);
+  if (!sourceRow) throw new Error(`Linha modelo ${sourceRowNumber} não encontrada.`);
+  const clonedRow = sourceRow.cloneNode(true);
+  clonedRow.setAttribute('r', String(targetRowNumber));
+  for (const cell of clonedRow.getElementsByTagNameNS(namespace, 'c')) {
+    cell.setAttribute('r', spreadsheetReferenceAtRow(cell.getAttribute('r'), targetRowNumber));
+  }
+  const sheetData = documentXml.getElementsByTagNameNS(namespace, 'sheetData')[0];
+  const nextRow = [...sheetData.children].find((row) => Number(row.getAttribute('r')) > targetRowNumber);
+  sheetData.insertBefore(clonedRow, nextRow || null);
+  const dimension = documentXml.getElementsByTagNameNS(namespace, 'dimension')[0];
+  if (dimension?.getAttribute('ref')) {
+    const [start, end = start] = dimension.getAttribute('ref').split(':');
+    dimension.setAttribute('ref', `${start}:${spreadsheetReferenceAtRow(end, Math.max(targetRowNumber, Number(end.match(/\d+$/)?.[0] || 1)))}`);
+  }
+}
+
 function downloadWorkbook(blob, filename) {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
@@ -315,9 +340,7 @@ async function downloadPlan56(sourceData = null, triggerButton = plan56Button) {
   const originalLabel = triggerButton.innerHTML;
   triggerButton.textContent = 'Gerando…';
   try {
-    const data = sourceData || Object.fromEntries(new FormData(form));
-    const cpf = onlyDigits(data.cpf);
-    const telefone = onlyDigits(data.celular);
+    const records = Array.isArray(sourceData) ? sourceData : [sourceData || Object.fromEntries(new FormData(form))];
     const response = await fetch('./assets/PLAN5_PLAN6_CADASTRO_VENDEDOR.xlsx');
     if (!response.ok) throw new Error('Modelo não encontrado.');
     const zip = await JSZip.loadAsync(await response.arrayBuffer());
@@ -325,27 +348,34 @@ async function downloadPlan56(sourceData = null, triggerButton = plan56Button) {
     const sheetXml = await zip.file(sheetPath).async('string');
     const xml = new DOMParser().parseFromString(sheetXml, 'application/xml');
     if (xml.querySelector('parsererror')) throw new Error('Modelo inválido.');
-    const values = {
-      B4: 'Cadastro', C4: data.codigo || '', D4: data.regional || 'CO',
-      E4: data.nome || '', G4: isValidCPF(cpf) ? 'OK' : 'CPF Incorreto',
-      I4: data.email || '', J4: (data.cargo || '').replace(/\b\w/g, (letter) => letter.toUpperCase()).replace(/\B\w/g, (letter) => letter.toLowerCase())
-    };
-    for (const [reference, value] of Object.entries(values)) setSpreadsheetCell(xml, reference, value);
-    setSpreadsheetCell(xml, 'F4', cpf, true);
-    setSpreadsheetCell(xml, 'H4', telefone, true);
-    zip.file(sheetPath, new XMLSerializer().serializeToString(xml));
     const phoneSheetPath = 'xl/worksheets/sheet2.xml';
     const phoneSheetXml = await zip.file(phoneSheetPath).async('string');
     const phoneXml = new DOMParser().parseFromString(phoneSheetXml, 'application/xml');
     if (phoneXml.querySelector('parsererror')) throw new Error('Aba Plan 5 inválida.');
-    setSpreadsheetCell(phoneXml, 'B4', 'Cadastro');
-    setSpreadsheetCell(phoneXml, 'C4', data.codigo || '');
-    setSpreadsheetCell(phoneXml, 'D4', telefone, true);
+    records.forEach((data, index) => {
+      const rowNumber = 4 + index;
+      const cpf = onlyDigits(data.cpf);
+      const telefone = onlyDigits(data.celular);
+      ensureSpreadsheetRow(xml, 4, rowNumber);
+      ensureSpreadsheetRow(phoneXml, 4, rowNumber);
+      const values = {
+        B4: 'Cadastro', C4: data.codigo || '', D4: data.regional || 'CO',
+        E4: data.nome || '', G4: isValidCPF(cpf) ? 'OK' : 'CPF Incorreto',
+        I4: data.email || '', J4: (data.cargo || '').replace(/\b\w/g, (letter) => letter.toUpperCase()).replace(/\B\w/g, (letter) => letter.toLowerCase())
+      };
+      for (const [reference, value] of Object.entries(values)) setSpreadsheetCell(xml, spreadsheetReferenceAtRow(reference, rowNumber), value);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('F4', rowNumber), cpf, true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('H4', rowNumber), telefone, true);
+      setSpreadsheetCell(phoneXml, spreadsheetReferenceAtRow('B4', rowNumber), 'Cadastro');
+      setSpreadsheetCell(phoneXml, spreadsheetReferenceAtRow('C4', rowNumber), data.codigo || '');
+      setSpreadsheetCell(phoneXml, spreadsheetReferenceAtRow('D4', rowNumber), telefone, true);
+    });
+    zip.file(sheetPath, new XMLSerializer().serializeToString(xml));
     zip.file(phoneSheetPath, new XMLSerializer().serializeToString(phoneXml));
     const output = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const safeName = (data.nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '');
+    const safeName = records.length === 1 ? (records[0].nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '') : `${records.length}_VENDEDORES`;
     downloadWorkbook(output, `PLAN5_PLAN6_${safeName || 'vendedor'}.xlsx`);
-    showToast('Plan 5 e Plan 6 baixadas no mesmo arquivo.');
+    showToast(`${records.length} vendedor${records.length > 1 ? 'es' : ''} incluído${records.length > 1 ? 's' : ''} no mesmo arquivo.`);
   } catch (error) {
     console.error(error);
     showToast('Não foi possível gerar as planilhas. Tente novamente.');
@@ -365,9 +395,7 @@ async function downloadSgt3(sourceData = null, triggerButton = sgt3Button) {
   const originalLabel = triggerButton.innerHTML;
   triggerButton.textContent = 'Gerando…';
   try {
-    const data = sourceData || Object.fromEntries(new FormData(form));
-    const cpf = onlyDigits(data.cpf);
-    const telefone = onlyDigits(data.celular);
+    const records = Array.isArray(sourceData) ? sourceData : [sourceData || Object.fromEntries(new FormData(form))];
     const response = await fetch('./assets/SGT3_CRIACAO_IDENTIDADE_TERCEIRO.xlsx');
     if (!response.ok) throw new Error('Modelo SGT3 não encontrado.');
     const zip = await JSZip.loadAsync(await response.arrayBuffer());
@@ -376,29 +404,33 @@ async function downloadSgt3(sourceData = null, triggerButton = sgt3Button) {
     const xml = new DOMParser().parseFromString(sheetXml, 'application/xml');
     if (xml.querySelector('parsererror')) throw new Error('Modelo SGT3 inválido.');
     const dateToPtBr = (value) => value ? value.split('-').reverse().join('/') : '';
-    const locationParts = String(data.cidade || '').split(/\s*[-/]\s*/);
-    const uf = (locationParts.pop() || '').trim().toUpperCase();
-    const city = locationParts.join(' - ').trim();
-    const values = {
-      B6: data.sgt_tipo_usuario || '', C6: data.sgt_acesso_fisico || '', D6: data.sgt_acesso_logico || '',
-      E6: data.sgt_estacao || '', F6: data.sgt_site || '', G6: data.sgt_localizacao || '', H6: onlyDigits(data.rg),
-      J6: data.nome || '', K6: dateToPtBr(data.nascimento), L6: '', N6: data.email || '',
-      O6: data.sgt_qualificacao || '', Q6: data.razao_social || '', R6: data.sgt_segmento || '',
-      S6: data.sgt_quarterizada || '', T6: '', U6: '', V6: data.sgt_regime || '', W6: data.sgt_contrato || '',
-      X6: dateToPtBr(data.sgt_vigencia), Y6: data.sgt_unidade || '', Z6: data.sgt_categoria_claro || '',
-      AA6: data.sgt_categoria_embratel || '', AB6: data.sgt_regional || '', AC6: uf, AD6: city,
-      AF6: data.sgt_nome_gestor || ''
-    };
-    for (const [reference, value] of Object.entries(values)) setSpreadsheetCell(xml, reference, value);
-    setSpreadsheetCell(xml, 'I6', cpf, true);
-    setSpreadsheetCell(xml, 'M6', telefone, true);
-    setSpreadsheetCell(xml, 'P6', onlyDigits(data.cnpj), true);
-    setSpreadsheetCell(xml, 'AE6', onlyDigits(data.sgt_cpf_gestor), true);
+    records.forEach((data, index) => {
+      const rowNumber = 6 + index;
+      const locationParts = String(data.cidade || '').split(/\s*[-/]\s*/);
+      const uf = (locationParts.pop() || '').trim().toUpperCase();
+      const city = locationParts.join(' - ').trim();
+      ensureSpreadsheetRow(xml, 6, rowNumber);
+      const values = {
+        B6: data.sgt_tipo_usuario || '', C6: data.sgt_acesso_fisico || '', D6: data.sgt_acesso_logico || '',
+        E6: data.sgt_estacao || '', F6: data.sgt_site || '', G6: data.sgt_localizacao || '', H6: onlyDigits(data.rg),
+        J6: data.nome || '', K6: dateToPtBr(data.nascimento), L6: '', N6: data.email || '',
+        O6: data.sgt_qualificacao || '', Q6: data.razao_social || '', R6: data.sgt_segmento || '',
+        S6: data.sgt_quarterizada || '', T6: '', U6: '', V6: data.sgt_regime || '', W6: data.sgt_contrato || '',
+        X6: dateToPtBr(data.sgt_vigencia), Y6: data.sgt_unidade || '', Z6: data.sgt_categoria_claro || '',
+        AA6: data.sgt_categoria_embratel || '', AB6: data.sgt_regional || '', AC6: uf, AD6: city,
+        AF6: data.sgt_nome_gestor || ''
+      };
+      for (const [reference, value] of Object.entries(values)) setSpreadsheetCell(xml, spreadsheetReferenceAtRow(reference, rowNumber), value);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('I6', rowNumber), onlyDigits(data.cpf), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('M6', rowNumber), onlyDigits(data.celular), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('P6', rowNumber), onlyDigits(data.cnpj), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('AE6', rowNumber), onlyDigits(data.sgt_cpf_gestor), true);
+    });
     zip.file(sheetPath, new XMLSerializer().serializeToString(xml));
     const output = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const safeName = (data.nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '');
+    const safeName = records.length === 1 ? (records[0].nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '') : `${records.length}_VENDEDORES`;
     downloadWorkbook(output, `SGT3_${safeName || 'vendedor'}.xlsx`);
-    showToast('Planilha SGT3 baixada separadamente.');
+    showToast(`${records.length} vendedor${records.length > 1 ? 'es' : ''} incluído${records.length > 1 ? 's' : ''} na mesma SGT3.`);
   } catch (error) {
     console.error(error);
     showToast('Não foi possível gerar a planilha SGT3.');
@@ -422,8 +454,8 @@ function validateNetSalesData(data, useFormValidation = false) {
 }
 
 async function downloadNetSales(sourceData = null, triggerButton = netsalesButton) {
-  const data = sourceData || Object.fromEntries(new FormData(form));
-  if (!validateNetSalesData(data, !sourceData)) return;
+  const records = Array.isArray(sourceData) ? sourceData : [sourceData || Object.fromEntries(new FormData(form))];
+  if (!records.every((data) => validateNetSalesData(data, !sourceData))) return;
   if (!window.JSZip) {
     showToast('Gerador de planilha indisponível. Atualize a página.');
     return;
@@ -439,23 +471,27 @@ async function downloadNetSales(sourceData = null, triggerButton = netsalesButto
     const sheetXml = await zip.file(sheetPath).async('string');
     const xml = new DOMParser().parseFromString(sheetXml, 'application/xml');
     if (xml.querySelector('parsererror')) throw new Error('Modelo NetSales inválido.');
-    const textValues = {
-      C8: data.netsales_tipo || '', D8: data.login || '', E8: data.nome || '', H8: data.netsales_diretoria || '',
-      I8: data.netsales_equipe || '', K8: data.razao_social || '', L8: data.netsales_tipo_empresa || '',
-      N8: data.netsales_supervisor_login || '', O8: data.netsales_supervisor_nome || data.sgt_nome_gestor || '',
-      P8: data.netsales_perfil || '', Q8: data.netsales_duo || '', R8: data.netsales_base || '',
-      S8: data.netsales_cidade || String(data.cidade || '').split(/\s*[-/]\s*/)[0],
-      T8: data.netsales_retira_citrix || 'NÃO', U8: data.netsales_suporte_oc || 'NÃO'
-    };
-    for (const [reference, value] of Object.entries(textValues)) setSpreadsheetCell(xml, reference, value);
-    setSpreadsheetCell(xml, 'F8', onlyDigits(data.rg), true);
-    setSpreadsheetCell(xml, 'G8', onlyDigits(data.cpf), true);
-    setSpreadsheetCell(xml, 'M8', onlyDigits(data.cnpj), true);
+    records.forEach((data, index) => {
+      const rowNumber = 8 + index;
+      ensureSpreadsheetRow(xml, 8, rowNumber);
+      const textValues = {
+        C8: data.netsales_tipo || '', D8: data.login || '', E8: data.nome || '', H8: data.netsales_diretoria || '',
+        I8: data.netsales_equipe || '', K8: data.razao_social || '', L8: data.netsales_tipo_empresa || '',
+        N8: data.netsales_supervisor_login || '', O8: data.netsales_supervisor_nome || data.sgt_nome_gestor || '',
+        P8: data.netsales_perfil || '', Q8: data.netsales_duo || '', R8: data.netsales_base || '',
+        S8: data.netsales_cidade || String(data.cidade || '').split(/\s*[-/]\s*/)[0],
+        T8: data.netsales_retira_citrix || 'NÃO', U8: data.netsales_suporte_oc || 'NÃO'
+      };
+      for (const [reference, value] of Object.entries(textValues)) setSpreadsheetCell(xml, spreadsheetReferenceAtRow(reference, rowNumber), value);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('F8', rowNumber), onlyDigits(data.rg), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('G8', rowNumber), onlyDigits(data.cpf), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('M8', rowNumber), onlyDigits(data.cnpj), true);
+    });
     zip.file(sheetPath, new XMLSerializer().serializeToString(xml));
     const output = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const safeName = (data.nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '');
+    const safeName = records.length === 1 ? (records[0].nome || 'vendedor').trim().replace(/[^a-zA-ZÀ-ÿ0-9]+/g, '_').replace(/^_|_$/g, '') : `${records.length}_VENDEDORES`;
     downloadWorkbook(output, `NETSALES_${safeName || 'vendedor'}.xlsx`);
-    showToast('Planilha NetSales baixada separadamente.');
+    showToast(`${records.length} vendedor${records.length > 1 ? 'es' : ''} incluído${records.length > 1 ? 's' : ''} na mesma NetSales.`);
   } catch (error) {
     console.error(error);
     showToast('Não foi possível gerar a planilha NetSales.');
