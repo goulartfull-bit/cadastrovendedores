@@ -154,16 +154,16 @@ async function saveCadastro({ addAnother = false } = {}) {
         body: JSON.stringify({ data, updated_at: savedAt })
       }, true);
     } else {
-      await apiRequest('/rest/v1/vendedores', {
+      const result = await apiRequest('/functions/v1/register-seller', {
         method: 'POST',
-        headers: { Prefer: 'return=minimal' },
         body: JSON.stringify({ data })
       });
+      data.protocolo = result?.protocolo || '';
     }
-    saveStatus.textContent = `Salvo online às ${new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`;
+    saveStatus.textContent = data.protocolo ? `Salvo com protocolo ${data.protocolo}.` : `Salvo online às ${new Date(savedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`;
     reviewName.textContent = data.nome || 'Novo vendedor';
     if (session) await loadSellers();
-    showToast('Cadastro salvo e sincronizado com sucesso.');
+    showToast(data.protocolo ? `Cadastro salvo. Protocolo: ${data.protocolo}` : 'Cadastro salvo e sincronizado com sucesso.');
     if (addAnother) {
       form.reset();
       selectedSellerId = null;
@@ -202,8 +202,8 @@ async function loadSellers() {
     return;
   }
   try {
-    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,created_at,status&status=eq.fila&order=created_at.desc', {}, true);
-    sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, savedAt: row.created_at, status: row.status }));
+    const rows = await apiRequest('/rest/v1/vendedores?select=id,data,protocolo,created_at,status&status=eq.fila&order=created_at.desc', {}, true);
+    sellersCache = (rows || []).map((row) => ({ id: row.id, data: row.data, protocolo: row.protocolo, savedAt: row.created_at, status: row.status }));
     for (const id of selectedSellerIds) if (!sellersCache.some((seller) => seller.id === id)) selectedSellerIds.delete(id);
     if (selectedSellerId && !sellersCache.some((seller) => seller.id === selectedSellerId)) selectedSellerId = null;
     renderSellers();
@@ -231,7 +231,7 @@ function renderSellers() {
     row.dataset.sellerId = seller.id;
     if (selectedSellerIds.has(seller.id)) row.classList.add('selected');
     const savedDate = new Date(seller.savedAt);
-    row.innerHTML = `<td><input type="checkbox" aria-label="Selecionar ${escapeHtml(seller.data.nome || 'vendedor')}" ${selectedSellerIds.has(seller.id) ? 'checked' : ''}></td><td><strong>${escapeHtml(seller.data.nome || 'Sem nome')}</strong><small>${escapeHtml(seller.data.email || '')}</small></td><td>${escapeHtml(seller.data.cpf || '')}</td><td>${escapeHtml(seller.data.codigo || '')}</td><td>${escapeHtml(seller.data.cidade || '')}</td><td>${Number.isNaN(savedDate.getTime()) ? '—' : savedDate.toLocaleDateString('pt-BR')}</td>`;
+    row.innerHTML = `<td><input type="checkbox" aria-label="Selecionar ${escapeHtml(seller.data.nome || 'vendedor')}" ${selectedSellerIds.has(seller.id) ? 'checked' : ''}></td><td><strong>${escapeHtml(seller.data.nome || 'Sem nome')}</strong><small>${escapeHtml(seller.protocolo || seller.data.email || '')}</small></td><td>${escapeHtml(seller.data.cpf || '')}</td><td>${escapeHtml(seller.data.codigo || '')}</td><td>${escapeHtml(seller.data.cidade || '')}</td><td>${Number.isNaN(savedDate.getTime()) ? '—' : savedDate.toLocaleDateString('pt-BR')}</td>`;
     row.addEventListener('click', () => toggleSeller(seller.id));
     sellerList.appendChild(row);
   }
@@ -713,7 +713,8 @@ function renderAccessUsers() {
     const row = document.createElement('tr');
     const statusClass = user.active ? 'active' : 'inactive';
     const statusText = user.active ? 'Ativo' : 'Desativado';
-    row.innerHTML = `<td><strong>${escapeHtml(user.email || 'Sem e-mail')}</strong><small>${user.last_sign_in_at ? `Último acesso: ${formatAccessDate(user.last_sign_in_at)}` : 'Ainda não acessou'}</small></td><td><span class="access-status ${statusClass}">${statusText}</span></td><td>${formatAccessDate(user.created_at)}</td><td><div class="access-row-actions"><button class="button secondary access-toggle" type="button">${user.active ? 'Desativar' : 'Ativar'}</button><button class="button danger access-delete" type="button">Excluir</button></div></td>`;
+    row.innerHTML = `<td><strong>${escapeHtml(user.email || 'Sem e-mail')}</strong><small>${user.last_sign_in_at ? `Último acesso: ${formatAccessDate(user.last_sign_in_at)}` : 'Ainda não acessou'}</small></td><td><span class="access-status ${statusClass}">${statusText}</span></td><td><label class="notify-toggle"><input class="access-notify" type="checkbox" ${user.notify_new_registration ? 'checked' : ''}> ${user.notify_new_registration ? 'Sim' : 'Não'}</label></td><td>${formatAccessDate(user.created_at)}</td><td><div class="access-row-actions"><button class="button secondary access-toggle" type="button">${user.active ? 'Desativar' : 'Ativar'}</button><button class="button danger access-delete" type="button">Excluir</button></div></td>`;
+    row.querySelector('.access-notify').addEventListener('change', (event) => toggleAccessNotification(user, event.target.checked));
     row.querySelector('.access-toggle').addEventListener('click', () => toggleAccessUser(user));
     row.querySelector('.access-delete').addEventListener('click', () => deleteAccessUser(user));
     accessList.appendChild(row);
@@ -738,11 +739,22 @@ async function toggleAccessUser(user) {
   const action = user.active ? 'desativar' : 'ativar';
   if (!window.confirm(`Deseja ${action} o acesso de ${user.email}?`)) return;
   try {
-    await accessApi('PATCH', { id: user.id, email: user.email, active: !user.active });
+    await accessApi('PATCH', { id: user.id, email: user.email, active: !user.active, notify_new_registration: user.notify_new_registration });
     showToast(`Acesso ${user.active ? 'desativado' : 'ativado'} com sucesso.`);
     await loadAccessUsers();
   } catch (error) {
     showToast(error.message || 'Não foi possível alterar o acesso.');
+  }
+}
+
+async function toggleAccessNotification(user, enabled) {
+  try {
+    await accessApi('PATCH', { id: user.id, email: user.email, active: user.active, notify_new_registration: enabled });
+    showToast(enabled ? 'Administrador receberá novos protocolos.' : 'Notificação de protocolos desativada.');
+    await loadAccessUsers();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível alterar a notificação.');
+    await loadAccessUsers();
   }
 }
 
@@ -840,6 +852,7 @@ accessForm.addEventListener('submit', async (event) => {
   submit.disabled = true;
   try {
     const payload = Object.fromEntries(new FormData(accessForm));
+    payload.notify_new_registration = payload.notify_new_registration === 'true';
     await accessApi('POST', payload);
     accessForm.reset();
     showToast('Novo usuário cadastrado com sucesso.');

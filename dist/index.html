@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261008-7">
+  <link rel="stylesheet" href="./styles.css?v=20261008-8">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -290,6 +290,7 @@
             <form id="access-form" autocomplete="off">
               <label class="field">E-mail do usuário<input name="email" type="email" placeholder="usuario@empresa.com.br" autocomplete="off" required></label>
               <label class="field">Senha provisória<input name="password" type="password" minlength="8" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" required></label>
+              <label class="notification-option"><input name="notify_new_registration" type="checkbox" value="true"><span><strong>Receber novos cadastros</strong><small>Envia uma cópia do protocolo para este administrador.</small></span></label>
               <button class="button primary" type="submit">Cadastrar usuário</button>
             </form>
             <div class="info-box"><span aria-hidden="true">i</span><p>A senha é enviada diretamente ao Supabase e não fica gravada no código público do site.</p></div>
@@ -298,7 +299,7 @@
             <div class="access-list-heading"><div><h2 id="access-list-title">Acessos cadastrados</h2><p>Ative, desative ou exclua contas administrativas.</p></div><button class="button secondary" id="refresh-access-button" type="button">Atualizar</button></div>
             <div class="seller-table-wrap">
               <table class="seller-table access-table">
-                <thead><tr><th scope="col">Usuário</th><th scope="col">Status</th><th scope="col">Cadastro</th><th scope="col">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Usuário</th><th scope="col">Status</th><th scope="col">Recebe protocolos</th><th scope="col">Cadastro</th><th scope="col">Ações</th></tr></thead>
                 <tbody id="access-list"></tbody>
               </table>
             </div>
@@ -328,6 +329,6 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-7"></script>
+  <script src="./app.js?v=20261008-8"></script>
 </body>
 </html>

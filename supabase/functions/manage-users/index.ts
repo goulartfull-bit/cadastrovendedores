@@ -44,15 +44,16 @@ Deno.serve(async (request) => {
     if (request.method === 'GET') {
       const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (error) throw error;
-      const { data: accessRows, error: accessError } = await admin.from('admin_users').select('email,active');
+      const { data: accessRows, error: accessError } = await admin.from('admin_users').select('email,active,notify_new_registration');
       if (accessError) throw accessError;
-      const status = new Map((accessRows || []).map((row) => [row.email, row.active]));
+      const status = new Map((accessRows || []).map((row) => [row.email, row]));
       const users = data.users
         .filter((item) => item.email && status.has(item.email.toLowerCase()))
         .map((item) => ({
           id: item.id,
           email: item.email,
-          active: status.get(item.email!.toLowerCase()) === true,
+          active: status.get(item.email!.toLowerCase())?.active === true,
+          notify_new_registration: status.get(item.email!.toLowerCase())?.notify_new_registration === true,
           created_at: item.created_at,
           last_sign_in_at: item.last_sign_in_at
         }));
@@ -68,7 +69,7 @@ Deno.serve(async (request) => {
       if (password.length < 8) return json(request, { message: 'A senha provisória deve ter ao menos 8 caracteres.' }, 400);
       const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
       if (error) return json(request, { message: error.message }, 400);
-      const { error: insertError } = await admin.from('admin_users').upsert({ email, active: true, updated_at: new Date().toISOString() });
+      const { error: insertError } = await admin.from('admin_users').upsert({ email, active: true, notify_new_registration: payload.notify_new_registration === true, updated_at: new Date().toISOString() });
       if (insertError) {
         await admin.auth.admin.deleteUser(data.user.id);
         throw insertError;
@@ -78,13 +79,16 @@ Deno.serve(async (request) => {
 
     const id = String(payload.id || '');
     if (!id || !email) return json(request, { message: 'Usuário inválido.' }, 400);
-    if (email === user.email.toLowerCase()) return json(request, { message: 'Você não pode alterar ou excluir o próprio acesso.' }, 400);
+    const isSelf = email === user.email.toLowerCase();
+    if (request.method === 'DELETE' && isSelf) return json(request, { message: 'Você não pode excluir o próprio acesso.' }, 400);
 
     if (request.method === 'PATCH') {
       const active = payload.active === true;
+      const notifyNewRegistration = payload.notify_new_registration === true;
+      if (isSelf && !active) return json(request, { message: 'Você não pode desativar o próprio acesso.' }, 400);
       const { error: updateAuthError } = await admin.auth.admin.updateUserById(id, { ban_duration: active ? 'none' : '876000h' });
       if (updateAuthError) throw updateAuthError;
-      const { error: updateError } = await admin.from('admin_users').update({ active, updated_at: new Date().toISOString() }).eq('email', email);
+      const { error: updateError } = await admin.from('admin_users').update({ active, notify_new_registration: notifyNewRegistration, updated_at: new Date().toISOString() }).eq('email', email);
       if (updateError) throw updateError;
       return json(request, { success: true });
     }
@@ -103,4 +107,3 @@ Deno.serve(async (request) => {
     return json(request, { message: error instanceof Error ? error.message : 'Erro interno.' }, 500);
   }
 });
-
