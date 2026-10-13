@@ -42,6 +42,25 @@ const selectedArchivedStatus = document.querySelector('#selected-archived-status
 const clearArchivedSelectionButton = document.querySelector('#clear-archived-selection-button');
 const restoreSelectedButton = document.querySelector('#restore-selected-button');
 const refreshArchivedButton = document.querySelector('#refresh-archived-button');
+const adminManagerFilter = document.querySelector('#admin-manager-filter');
+const adminTableBody = document.querySelector('#admin-table-body');
+const adminEmpty = document.querySelector('#admin-empty');
+const adminRowCount = document.querySelector('#admin-row-count');
+const adminPdvCount = document.querySelector('#admin-pdv-count');
+const adminRealizado = document.querySelector('#admin-realizado');
+const adminTendencia = document.querySelector('#admin-tendencia');
+const adminAtingimento = document.querySelector('#admin-atingimento');
+const adminSourceFile = document.querySelector('#admin-source-file');
+const adminSourceDate = document.querySelector('#admin-source-date');
+const refreshAdminButton = document.querySelector('#refresh-admin-button');
+const databaseFileInput = document.querySelector('#database-file-input');
+const databaseFileName = document.querySelector('#database-file-name');
+const databaseImportPreview = document.querySelector('#database-import-preview');
+const databaseManagerCount = document.querySelector('#database-manager-count');
+const databaseRowCount = document.querySelector('#database-row-count');
+const databaseThiagoCount = document.querySelector('#database-thiago-count');
+const databaseUploadStatus = document.querySelector('#database-upload-status');
+const databaseUploadButton = document.querySelector('#database-upload-button');
 const supabaseUrl = 'https://vfkujizbdrmehnzrltjn.supabase.co';
 const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
 const authStorageKey = 'gestao-agente-autorizado-session';
@@ -52,6 +71,8 @@ const selectedSellerIds = new Set();
 const selectedArchivedIds = new Set();
 let pendingProtectedView = null;
 let accessUsers = [];
+let administrativeRows = [];
+let pendingAdministrativeImport = null;
 sidebar.classList.remove('open');
 menuButton.setAttribute('aria-expanded', 'false');
 
@@ -690,7 +711,162 @@ sidebar.addEventListener('click', (event) => {
   }
 });
 
-const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso' };
+function normalizeHeader(value) {
+  return String(value ?? '').trim().toLocaleUpperCase('pt-BR');
+}
+
+function managerDisplayName(value) {
+  const normalized = normalizeHeader(value).replace(/\s+/g, ' ');
+  if (normalized === 'THIAGO G.' || normalized === 'THIAGO G' || normalized === 'THIAGO GOULART') return 'Thiago Goulart';
+  return String(value ?? '').trim() || 'Não identificado';
+}
+
+function findHeaderRow(rows, requiredHeader) {
+  return rows.findIndex((row) => row.some((cell) => normalizeHeader(cell) === requiredHeader));
+}
+
+function columnIndex(header, label) {
+  return header.findIndex((cell) => normalizeHeader(cell) === label);
+}
+
+function numericValue(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const parsed = Number(String(value ?? '').replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseAdministrativeWorkbook(workbook, sourceFile) {
+  const m5Sheet = workbook.Sheets.M5;
+  const metaSheet = workbook.Sheets.MetaIW;
+  if (!m5Sheet || !metaSheet) throw new Error('A planilha precisa conter as abas M5 e MetaIW.');
+  const options = { header: 1, defval: null, raw: true };
+  const m5Rows = XLSX.utils.sheet_to_json(m5Sheet, options);
+  const metaRows = XLSX.utils.sheet_to_json(metaSheet, options);
+  const m5HeaderRow = findHeaderRow(m5Rows, 'PLATAFORMA');
+  const metaHeaderRow = findHeaderRow(metaRows, 'CODIGO AGENTE');
+  if (m5HeaderRow < 0 || metaHeaderRow < 0) throw new Error('Não foi possível localizar os cabeçalhos esperados em M5 ou MetaIW.');
+  const mh = m5Rows[m5HeaderRow];
+  const th = metaRows[metaHeaderRow];
+  const m5 = {
+    plataforma: columnIndex(mh, 'PLATAFORMA'), codigo: columnIndex(mh, 'COD_AMDOCS'), pdv: columnIndex(mh, 'PDV_NICKNAME'), ddd: columnIndex(mh, 'FILIAL'),
+    realizado: columnIndex(mh, 'OUT-26'), tendencia: columnIndex(mh, 'TEND'), meta: columnIndex(mh, 'META'), gap: columnIndex(mh, 'GAP'),
+    atingimento: columnIndex(mh, '%ATING'), ytd25: columnIndex(mh, 'YTD25'), ytd26: columnIndex(mh, 'YTD26.'), ytd: columnIndex(mh, '%YTD')
+  };
+  const metaCode = columnIndex(th, 'CODIGO AGENTE');
+  const metaManager = columnIndex(th, 'GN');
+  if (m5.codigo < 0 || metaCode < 0 || metaManager < 0) throw new Error('As colunas COD_AMDOCS, CODIGO AGENTE e GN são obrigatórias.');
+  const managersByCode = new Map();
+  for (const row of metaRows.slice(metaHeaderRow + 1)) {
+    const code = String(row[metaCode] ?? '').trim().toUpperCase();
+    const manager = managerDisplayName(row[metaManager]);
+    if (code && manager !== 'Não identificado') managersByCode.set(code, manager);
+  }
+  const rows = [];
+  for (const row of m5Rows.slice(m5HeaderRow + 1)) {
+    const codigo = String(row[m5.codigo] ?? '').trim().toUpperCase();
+    const manager = managersByCode.get(codigo);
+    if (!codigo || !manager || !row[m5.plataforma]) continue;
+    rows.push({
+      manager, codigo, plataforma: String(row[m5.plataforma] ?? ''), pdv: String(row[m5.pdv] ?? ''), ddd: String(row[m5.ddd] ?? ''),
+      realizado: numericValue(row[m5.realizado]), tendencia: numericValue(row[m5.tendencia]), meta: numericValue(row[m5.meta]), gap: numericValue(row[m5.gap]),
+      atingimento: numericValue(row[m5.atingimento]), ytd25: numericValue(row[m5.ytd25]), ytd26: numericValue(row[m5.ytd26]), ytd: numericValue(row[m5.ytd]), source_file: sourceFile
+    });
+  }
+  if (!rows.length) throw new Error('Nenhum registro da M5 corresponde aos códigos da MetaIW.');
+  return rows;
+}
+
+function formatNumber(value, maximumFractionDigits = 1) {
+  return numericValue(value).toLocaleString('pt-BR', { maximumFractionDigits });
+}
+
+function formatPercent(value) {
+  const number = numericValue(value);
+  return `${(Math.abs(number) <= 3 ? number * 100 : number).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+}
+
+function renderAdministrative() {
+  const manager = adminManagerFilter.value || 'Thiago Goulart';
+  const rows = administrativeRows.filter((row) => row.manager === manager);
+  adminTableBody.replaceChildren();
+  for (const row of rows) {
+    const data = row.data || row;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(row.codigo || data.codigo)}</strong></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td><td>${formatNumber(data.realizado)}</td><td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
+    adminTableBody.appendChild(tr);
+  }
+  const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
+  const realizado = rows.reduce((sum, row) => sum + numericValue((row.data || row).realizado), 0);
+  const tendencia = rows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
+  const meta = rows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
+  adminRowCount.textContent = String(rows.length);
+  adminPdvCount.textContent = String(distinctPdvs);
+  adminRealizado.textContent = formatNumber(realizado);
+  adminTendencia.textContent = formatNumber(tendencia);
+  adminAtingimento.textContent = meta ? formatPercent(tendencia / meta) : '0%';
+  adminEmpty.hidden = rows.length > 0;
+  const latest = rows[0];
+  adminSourceFile.textContent = latest?.source_file || 'Nenhum arquivo importado';
+  adminSourceDate.textContent = latest?.imported_at ? `Atualizado em ${new Date(latest.imported_at).toLocaleString('pt-BR')}` : '—';
+}
+
+async function loadAdministrative() {
+  refreshAdminButton.disabled = true;
+  try {
+    administrativeRows = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', {}, true) || [];
+    const managers = [...new Set(administrativeRows.map((row) => row.manager))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const current = adminManagerFilter.value || 'Thiago Goulart';
+    adminManagerFilter.replaceChildren(...(managers.length ? managers : ['Thiago Goulart']).map((manager) => new Option(manager, manager)));
+    adminManagerFilter.value = managers.includes(current) ? current : (managers.includes('Thiago Goulart') ? 'Thiago Goulart' : managers[0]);
+    renderAdministrative();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível carregar a base administrativa.');
+  } finally {
+    refreshAdminButton.disabled = false;
+  }
+}
+
+async function previewAdministrativeFile(file) {
+  databaseUploadButton.disabled = true;
+  databaseUploadStatus.textContent = 'Lendo as abas M5 e MetaIW...';
+  databaseFileName.textContent = file.name;
+  try {
+    if (!window.XLSX) throw new Error('Leitor de planilhas indisponível. Atualize a página e tente novamente.');
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = parseAdministrativeWorkbook(workbook, file.name);
+    pendingAdministrativeImport = { fileName: file.name, rows };
+    databaseManagerCount.textContent = String(new Set(rows.map((row) => row.manager)).size);
+    databaseRowCount.textContent = String(rows.length);
+    databaseThiagoCount.textContent = String(rows.filter((row) => row.manager === 'Thiago Goulart').length);
+    databaseImportPreview.hidden = false;
+    databaseUploadStatus.textContent = 'Arquivo validado. Pronto para atualizar.';
+    databaseUploadButton.disabled = false;
+  } catch (error) {
+    pendingAdministrativeImport = null;
+    databaseImportPreview.hidden = true;
+    databaseUploadStatus.textContent = error.message;
+    showToast(error.message);
+  }
+}
+
+async function uploadAdministrativeData() {
+  if (!pendingAdministrativeImport) return;
+  databaseUploadButton.disabled = true;
+  databaseUploadStatus.textContent = 'Atualizando a base online...';
+  try {
+    const result = await apiRequest('/rest/v1/rpc/replace_administrativo_m5', { method: 'POST', body: JSON.stringify({ p_source_file: pendingAdministrativeImport.fileName, p_rows: pendingAdministrativeImport.rows }) }, true);
+    databaseUploadStatus.textContent = `Base atualizada com ${result ?? pendingAdministrativeImport.rows.length} registros.`;
+    showToast('Painel Administrativo atualizado com sucesso.');
+    await loadAdministrative();
+  } catch (error) {
+    databaseUploadStatus.textContent = error.message || 'Não foi possível atualizar a base.';
+    showToast(databaseUploadStatus.textContent);
+  } finally {
+    databaseUploadButton.disabled = false;
+  }
+}
+
+const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso', administrativo: 'Administrativo', 'gestao-banco': 'Gestão Banco de dados' };
 
 async function accessApi(method = 'GET', body = null) {
   const session = getSession();
@@ -782,7 +958,7 @@ function updateAuthUi() {
 }
 
 async function showView(viewName, updateHash = true) {
-  if (['acoes', 'vendedores', 'bd-vendedores', 'acessos'].includes(viewName) && !getSession()) {
+  if (['acoes', 'vendedores', 'bd-vendedores', 'acessos', 'administrativo', 'gestao-banco'].includes(viewName) && !getSession()) {
     openAuth(viewName);
     return;
   }
@@ -803,6 +979,7 @@ async function showView(viewName, updateHash = true) {
   if (viewName === 'vendedores') await loadSellers();
   if (viewName === 'bd-vendedores') await loadArchivedSellers();
   if (viewName === 'acessos') await loadAccessUsers();
+  if (viewName === 'administrativo') await loadAdministrative();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -865,6 +1042,13 @@ accessForm.addEventListener('submit', async (event) => {
 });
 
 refreshAccessButton.addEventListener('click', loadAccessUsers);
+refreshAdminButton.addEventListener('click', loadAdministrative);
+adminManagerFilter.addEventListener('change', renderAdministrative);
+databaseFileInput.addEventListener('change', () => {
+  const file = databaseFileInput.files?.[0];
+  if (file) previewAdministrativeFile(file);
+});
+databaseUploadButton.addEventListener('click', uploadAdministrativeData);
 
 logoutButton.addEventListener('click', () => {
   sessionStorage.removeItem(authStorageKey);

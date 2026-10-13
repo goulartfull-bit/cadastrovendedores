@@ -35,6 +35,12 @@
       <a class="nav-item" href="#acessos" data-view-link="acessos">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span>
       </a>
+      <a class="nav-item" href="#administrativo" data-view-link="administrativo">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Administrativo</span>
+      </a>
+      <a class="nav-item" href="#gestao-banco" data-view-link="gestao-banco">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M15 13h6M18 10v6"/></svg></span><span>Gestão Banco de dados</span>
+      </a>
     </nav>
     <div class="privacy-note">
       <span class="status-dot" aria-hidden="true"></span>
@@ -307,6 +313,56 @@
           </section>
         </div>
       </section>
+
+      <section class="app-view" id="view-administrativo" data-view="administrativo" hidden>
+        <header class="view-header seller-heading">
+          <div><p class="overline">ADMINISTRAÇÃO · RESULTADOS M5</p><h1>Administrativo</h1><p>Acompanhamento dos resultados da aba M5 por gestor.</p></div>
+          <div class="seller-count"><span>Registros</span><strong id="admin-row-count">0</strong></div>
+        </header>
+        <div class="admin-toolbar">
+          <label class="field">Gestor<select id="admin-manager-filter"><option value="Thiago Goulart">Thiago Goulart</option></select></label>
+          <div class="admin-source"><span>Base atual</span><strong id="admin-source-file">Nenhum arquivo importado</strong><small id="admin-source-date">—</small></div>
+          <button class="button secondary" id="refresh-admin-button" type="button">Atualizar painel</button>
+        </div>
+        <div class="metric-grid" aria-label="Indicadores administrativos">
+          <article class="metric-card"><span>PDVs</span><strong id="admin-pdv-count">0</strong><small>Códigos distintos</small></article>
+          <article class="metric-card"><span>Realizado OUT-26</span><strong id="admin-realizado">0</strong><small>Soma da produção</small></article>
+          <article class="metric-card"><span>Tendência</span><strong id="admin-tendencia">0</strong><small>Projeção do mês</small></article>
+          <article class="metric-card featured"><span>Atingimento</span><strong id="admin-atingimento">0%</strong><small>Tendência sobre meta</small></article>
+        </div>
+        <div class="seller-card admin-table-card">
+          <div class="seller-table-wrap">
+            <table class="seller-table admin-table">
+              <thead><tr><th>Plataforma</th><th>Código</th><th>PDV</th><th>DDD</th><th>OUT-26</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
+              <tbody id="admin-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="admin-empty"><strong>Nenhuma base importada</strong><span>Use o menu Gestão Banco de dados para carregar a planilha Master de Parceiros.</span></div>
+        </div>
+      </section>
+
+      <section class="app-view" id="view-gestao-banco" data-view="gestao-banco" hidden>
+        <header class="view-header">
+          <div><p class="overline">ADMINISTRAÇÃO · ATUALIZAÇÃO DA BASE</p><h1>Gestão Banco de dados</h1><p>Importe uma nova planilha Master para atualizar o painel Administrativo.</p></div>
+        </header>
+        <section class="form-card database-upload-card" aria-labelledby="database-upload-title">
+          <div class="section-heading"><span class="section-icon" aria-hidden="true">↑</span><div><h2 id="database-upload-title">Atualizar base administrativa</h2><p>O sistema cruza a aba MetaIW com a aba M5 e atualiza todos os resultados.</p></div></div>
+          <label class="upload-zone" for="database-file-input">
+            <input id="database-file-input" type="file" accept=".xlsb,.xlsx,.xls" hidden>
+            <span class="upload-icon" aria-hidden="true">↑</span>
+            <strong>Selecionar planilha Master</strong>
+            <small>Formatos aceitos: XLSB, XLSX ou XLS</small>
+            <em id="database-file-name">Nenhum arquivo selecionado</em>
+          </label>
+          <div class="import-preview" id="database-import-preview" hidden>
+            <div><span>Gestores identificados</span><strong id="database-manager-count">0</strong></div>
+            <div><span>Registros M5</span><strong id="database-row-count">0</strong></div>
+            <div><span>Thiago Goulart</span><strong id="database-thiago-count">0</strong></div>
+          </div>
+          <div class="info-box"><span aria-hidden="true">i</span><p>A atualização substitui a base administrativa anterior. Os cadastros de vendedores não são alterados.</p></div>
+          <div class="upload-actions"><span id="database-upload-status">Selecione o arquivo para começar.</span><button class="button primary" id="database-upload-button" type="button" disabled>Atualizar Administrativo</button></div>
+        </section>
+      </section>
     </div>
   </main>
 
@@ -316,7 +372,7 @@
       <span class="auth-mark" aria-hidden="true">G</span>
       <p class="overline">ÁREA RESTRITA</p>
       <h2 id="auth-title">Acesso administrativo</h2>
-      <p>Entre para acessar Revisão, Vendedores, BD de dados, Controle de acesso e geração de planilhas.</p>
+      <p>Entre para acessar Revisão, Vendedores, Administrativo, Gestão Banco de dados e demais áreas restritas.</p>
       <form id="auth-form">
         <label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label>
         <label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label>
@@ -329,6 +385,7 @@
     </div>
   </div>
   <script src="./assets/jszip.min.js"></script>
-  <script src="./app.js?v=20261008-8"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="./app.js?v=20261013-1"></script>
 </body>
 </html>
