@@ -2,6 +2,8 @@ const form = document.querySelector('#cadastro');
 const toast = document.querySelector('.toast');
 const menuButton = document.querySelector('.menu-button');
 const sidebar = document.querySelector('.sidebar');
+const gnMenuToggle = document.querySelector('#gn-menu-toggle');
+const gnSubmenu = document.querySelector('#gn-submenu');
 const saveButton = document.querySelector('#save-button');
 const saveNextButton = document.querySelector('#save-next-button');
 const plan56Button = document.querySelector('#plan56-button');
@@ -88,6 +90,14 @@ let storeRegions = [];
 sidebar.classList.remove('open');
 if (window.innerWidth > 820 && localStorage.getItem('gestao-sidebar-collapsed') === 'true') sidebar.classList.add('collapsed');
 menuButton.setAttribute('aria-expanded', String(!sidebar.classList.contains('collapsed')));
+
+function setGnMenuOpen(open, persist = true) {
+  gnMenuToggle.setAttribute('aria-expanded', String(open));
+  gnSubmenu.hidden = !open;
+  if (persist) localStorage.setItem('gestao-gn-menu-open', String(open));
+}
+
+setGnMenuOpen(localStorage.getItem('gestao-gn-menu-open') === 'true', false);
 
 function showToast(message) {
   toast.textContent = message;
@@ -726,6 +736,16 @@ menuButton.addEventListener('click', () => {
   localStorage.setItem('gestao-sidebar-collapsed', String(collapsed));
   menuButton.setAttribute('aria-expanded', String(!collapsed));
 });
+gnMenuToggle.addEventListener('click', () => {
+  if (window.innerWidth > 820 && sidebar.classList.contains('collapsed')) {
+    sidebar.classList.remove('collapsed');
+    localStorage.setItem('gestao-sidebar-collapsed', 'false');
+    menuButton.setAttribute('aria-expanded', 'true');
+    setGnMenuOpen(true);
+    return;
+  }
+  setGnMenuOpen(gnMenuToggle.getAttribute('aria-expanded') !== 'true');
+});
 sidebar.addEventListener('click', (event) => {
   if (event.target.closest('a') && window.innerWidth <= 820) {
     sidebar.classList.remove('open');
@@ -1146,7 +1166,8 @@ function updateAuthUi() {
 }
 
 async function showView(viewName, updateHash = true) {
-  if (['acoes', 'vendedores', 'bd-vendedores', 'acessos', 'administrativo', 'gestao-banco'].includes(viewName) && !getSession()) {
+  const gnViews = ['acoes', 'vendedores', 'bd-vendedores', 'acessos', 'administrativo', 'gestao-banco'];
+  if (gnViews.includes(viewName) && !getSession()) {
     openAuth(viewName);
     return;
   }
@@ -1163,6 +1184,9 @@ async function showView(viewName, updateHash = true) {
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   });
+  const gnActive = gnViews.includes(viewName);
+  gnMenuToggle.classList.toggle('active', gnActive);
+  if (gnActive) setGnMenuOpen(true);
   currentViewLabel.textContent = viewLabels[viewName] || 'Gestão de vendedores';
   if (viewName === 'vendedores') await loadSellers();
   if (viewName === 'bd-vendedores') await loadArchivedSellers();

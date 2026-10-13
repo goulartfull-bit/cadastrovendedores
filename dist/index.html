@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261013-15">
+  <link rel="stylesheet" href="./styles.css?v=20261013-16">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -23,24 +23,19 @@
       <a class="nav-item active" href="#cadastro" data-view-link="cadastro" aria-current="page">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/></svg></span><span>Cadastros</span>
       </a>
-      <a class="nav-item" href="#acoes" data-view-link="acoes">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Revisão</span>
-      </a>
-      <a class="nav-item" href="#vendedores" data-view-link="vendedores">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span>
-      </a>
-      <a class="nav-item" href="#bd-vendedores" data-view-link="bd-vendedores">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span>BD de dados vendedor</span>
-      </a>
-      <a class="nav-item" href="#acessos" data-view-link="acessos">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span>
-      </a>
-      <a class="nav-item" href="#administrativo" data-view-link="administrativo">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Administrativo</span>
-      </a>
-      <a class="nav-item" href="#gestao-banco" data-view-link="gestao-banco">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M15 13h6M18 10v6"/></svg></span><span>Gestão Banco de dados</span>
-      </a>
+      <div class="nav-group" id="gn-menu-group">
+        <button class="nav-item nav-group-toggle" id="gn-menu-toggle" type="button" aria-expanded="false" aria-controls="gn-submenu">
+          <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M19 8v6M22 11h-6"/></svg></span><span>Gestão GN</span><span class="nav-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="nav-submenu" id="gn-submenu" hidden>
+          <a class="nav-item nav-subitem" href="#acoes" data-view-link="acoes"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Revisão</span></a>
+          <a class="nav-item nav-subitem" href="#vendedores" data-view-link="vendedores"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span></a>
+          <a class="nav-item nav-subitem" href="#bd-vendedores" data-view-link="bd-vendedores"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span>BD de dados vendedor</span></a>
+          <a class="nav-item nav-subitem" href="#acessos" data-view-link="acessos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span></a>
+          <a class="nav-item nav-subitem" href="#administrativo" data-view-link="administrativo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Administrativo</span></a>
+          <a class="nav-item nav-subitem" href="#gestao-banco" data-view-link="gestao-banco"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M15 13h6M18 10v6"/></svg></span><span>Gestão Banco de dados</span></a>
+        </div>
+      </div>
     </nav>
     <div class="privacy-note">
       <span class="status-dot" aria-hidden="true"></span>
@@ -410,6 +405,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-15"></script>
+  <script src="./app.js?v=20261013-16"></script>
 </body>
 </html>
