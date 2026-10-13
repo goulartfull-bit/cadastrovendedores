@@ -840,13 +840,13 @@ function renderProductScorecards(rows) {
     let changeText = 'Histórico indisponível';
     if (comparisonMonths.length === 2) {
       const previous = summary.history.get(comparisonMonths[0]) || 0;
-      const current = summary.history.get(comparisonMonths[1]) || 0;
-      if (current > previous) {
+      const projected = summary.tendencia;
+      if (projected > previous) {
         changeClass = 'up';
-        changeText = previous ? `↑ Crescendo ${formatPercent((current - previous) / Math.abs(previous))}` : '↑ Crescendo · novo';
-      } else if (current < previous) {
+        changeText = previous ? `↑ Crescendo ${formatPercent((projected / previous) - 1)}` : '↑ Crescendo · novo';
+      } else if (projected < previous) {
         changeClass = 'down';
-        changeText = previous ? `↓ Caindo ${formatPercent((current - previous) / Math.abs(previous))}` : '↓ Caindo';
+        changeText = previous ? `↓ Caindo ${formatPercent((projected / previous) - 1)}` : '↓ Caindo';
       } else {
         changeText = '→ Estável 0%';
       }
