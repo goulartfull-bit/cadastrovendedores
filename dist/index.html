@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261013-6">
+  <link rel="stylesheet" href="./styles.css?v=20261013-7">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -326,9 +326,17 @@
           <div class="admin-source"><span>Base atual</span><strong id="admin-source-file">Nenhum arquivo importado</strong><small id="admin-source-date">—</small></div>
           <button class="button secondary" id="refresh-admin-button" type="button">Atualizar painel</button>
         </div>
+        <section class="product-performance" aria-labelledby="product-performance-title">
+          <div class="analytics-heading">
+            <div><p class="overline">DESEMPENHO POR PRODUTO</p><h2 id="product-performance-title">Vendas do mês e histórico</h2></div>
+            <p>Realizado em destaque, com meta, tendência e os últimos três meses.</p>
+          </div>
+          <div class="product-score-grid" id="admin-product-cards"></div>
+          <div class="empty-state compact" id="admin-product-empty" hidden><strong>Histórico ainda não disponível</strong><span>Atualize a base no menu Gestão Banco de dados.</span></div>
+        </section>
         <div class="metric-grid" aria-label="Indicadores administrativos">
           <article class="metric-card"><span>PDVs</span><strong id="admin-pdv-count">0</strong><small>Códigos distintos</small></article>
-          <article class="metric-card"><span>Realizado OUT-26</span><strong id="admin-realizado">0</strong><small>Soma da produção</small></article>
+          <article class="metric-card"><span id="admin-current-month-label">Realizado do mês</span><strong id="admin-realizado">0</strong><small>Soma da produção</small></article>
           <article class="metric-card"><span>Tendência</span><strong id="admin-tendencia">0</strong><small>Projeção do mês</small></article>
           <article class="metric-card featured"><span>Atingimento</span><strong id="admin-atingimento">0%</strong><small>Tendência sobre meta</small></article>
         </div>
@@ -401,6 +409,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-6"></script>
+  <script src="./app.js?v=20261013-7"></script>
 </body>
 </html>

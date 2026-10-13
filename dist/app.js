@@ -52,6 +52,9 @@ const adminPdvCount = document.querySelector('#admin-pdv-count');
 const adminRealizado = document.querySelector('#admin-realizado');
 const adminTendencia = document.querySelector('#admin-tendencia');
 const adminAtingimento = document.querySelector('#admin-atingimento');
+const adminCurrentMonthLabel = document.querySelector('#admin-current-month-label');
+const adminProductCards = document.querySelector('#admin-product-cards');
+const adminProductEmpty = document.querySelector('#admin-product-empty');
 const adminSourceFile = document.querySelector('#admin-source-file');
 const adminSourceDate = document.querySelector('#admin-source-date');
 const refreshAdminButton = document.querySelector('#refresh-admin-button');
@@ -768,6 +771,9 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
     realizado: columnIndex(mh, 'OUT-26'), tendencia: columnIndex(mh, 'TEND'), meta: columnIndex(mh, 'META'), gap: columnIndex(mh, 'GAP'),
     atingimento: columnIndex(mh, '%ATING'), ytd25: columnIndex(mh, 'YTD25'), ytd26: columnIndex(mh, 'YTD26.'), ytd: columnIndex(mh, '%YTD')
   };
+  const monthColumns = mh.map((cell, index) => ({ label: normalizeHeader(cell), index })).filter((item) => /^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\d{2}$/.test(item.label));
+  const recentMonthColumns = monthColumns.slice(-3);
+  const currentMonthLabel = recentMonthColumns.at(-1)?.label || 'Mês atual';
   const fallbackM5 = { plataforma: 1, codigo: 2, pdv: 3, ddd: 4, realizado: 10, tendencia: 11, meta: 12, gap: 13, atingimento: 14, ytd25: 28, ytd26: 29, ytd: 30 };
   for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
   const metaCodeFound = columnIndex(th, 'CODIGO AGENTE');
@@ -788,7 +794,9 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
     rows.push({
       manager, codigo, plataforma: String(row[m5.plataforma] ?? ''), pdv: String(row[m5.pdv] ?? ''), ddd: String(row[m5.ddd] ?? ''),
       realizado: numericValue(row[m5.realizado]), tendencia: numericValue(row[m5.tendencia]), meta: numericValue(row[m5.meta]), gap: numericValue(row[m5.gap]),
-      atingimento: numericValue(row[m5.atingimento]), ytd25: numericValue(row[m5.ytd25]), ytd26: numericValue(row[m5.ytd26]), ytd: numericValue(row[m5.ytd]), source_file: sourceFile
+      atingimento: numericValue(row[m5.atingimento]), ytd25: numericValue(row[m5.ytd25]), ytd26: numericValue(row[m5.ytd26]), ytd: numericValue(row[m5.ytd]), source_file: sourceFile,
+      current_month: currentMonthLabel,
+      history: recentMonthColumns.map((month) => ({ label: month.label, value: numericValue(row[month.index]) }))
     });
   }
   if (!rows.length) throw new Error('Nenhum registro da M5 corresponde aos códigos da MetaIW.');
@@ -802,6 +810,36 @@ function formatNumber(value, maximumFractionDigits = 1) {
 function formatPercent(value) {
   const number = numericValue(value);
   return `${(Math.abs(number) <= 3 ? number * 100 : number).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+}
+
+function renderProductScorecards(rows) {
+  const products = new Map();
+  for (const row of rows) {
+    const data = row.data || row;
+    const product = String(data.plataforma || 'Sem produto').trim();
+    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [] });
+    const summary = products.get(product);
+    summary.realizado += numericValue(data.realizado);
+    summary.meta += numericValue(data.meta);
+    summary.tendencia += numericValue(data.tendencia);
+    for (const month of Array.isArray(data.history) ? data.history : []) {
+      const label = String(month.label || '').trim();
+      if (!label) continue;
+      if (!summary.history.has(label)) summary.monthOrder.push(label);
+      summary.history.set(label, (summary.history.get(label) || 0) + numericValue(month.value));
+    }
+  }
+  adminProductCards.replaceChildren();
+  for (const summary of [...products.values()].sort((a, b) => b.realizado - a.realizado)) {
+    const history = summary.monthOrder.slice(-3).map((label) => ({ label, value: summary.history.get(label) || 0 }));
+    const maxHistory = Math.max(1, ...history.map((item) => item.value));
+    const article = document.createElement('article');
+    article.className = 'product-score-card';
+    const historyMarkup = history.length ? history.map((item) => `<div class="history-point"><span class="history-bar"><i style="height:${Math.max(6, (item.value / maxHistory) * 100)}%"></i></span><strong>${formatNumber(item.value)}</strong><small>${escapeHtml(item.label)}</small></div>`).join('') : '<p class="history-unavailable">Atualize a base para carregar o histórico.</p>';
+    article.innerHTML = `<header><div><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><div class="score-history" aria-label="Histórico dos últimos três meses de ${escapeHtml(summary.product)}">${historyMarkup}</div>`;
+    adminProductCards.appendChild(article);
+  }
+  adminProductEmpty.hidden = products.size > 0;
 }
 
 function renderAdministrative() {
@@ -822,11 +860,14 @@ function renderAdministrative() {
   const realizado = rows.reduce((sum, row) => sum + numericValue((row.data || row).realizado), 0);
   const tendencia = rows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
   const meta = rows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
+  const currentMonth = (rows.find((row) => (row.data || row).current_month)?.data || rows.find((row) => row.current_month))?.current_month || 'Mês atual';
   adminRowCount.textContent = String(rows.length);
   adminPdvCount.textContent = String(distinctPdvs);
   adminRealizado.textContent = formatNumber(realizado);
   adminTendencia.textContent = formatNumber(tendencia);
   adminAtingimento.textContent = meta ? formatPercent(tendencia / meta) : '0%';
+  adminCurrentMonthLabel.textContent = `Realizado ${currentMonth}`;
+  renderProductScorecards(rows);
   adminEmpty.hidden = rows.length > 0;
   const latest = rows[0];
   adminSourceFile.textContent = latest?.source_file || 'Nenhum arquivo importado';
