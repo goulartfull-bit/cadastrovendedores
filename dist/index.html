@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261013-16">
+  <link rel="stylesheet" href="./styles.css?v=20261013-17">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -315,10 +315,10 @@
           <div class="seller-count"><span>Registros</span><strong id="admin-row-count">0</strong></div>
         </header>
         <div class="admin-toolbar">
-          <label class="field">Gestor<select id="admin-manager-filter"><option value="Thiago Goulart">Thiago Goulart</option></select></label>
-          <label class="field">Regional<select id="admin-region-filter"><option value="">Todas as regionais</option></select></label>
-          <label class="field">Código da loja<select id="admin-code-filter"><option value="">Todos os códigos</option></select></label>
-          <label class="field">Produto<select id="admin-product-filter"><option value="">Todos os produtos</option></select></label>
+          <div class="field"><span>Gestor</span><div class="filter-multiselect" id="admin-manager-filter"><button type="button" aria-expanded="false"><span>Todos os gestores</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <div class="field"><span>Regional</span><div class="filter-multiselect" id="admin-region-filter"><button type="button" aria-expanded="false"><span>Todas as regionais</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <div class="field"><span>Código da loja</span><div class="filter-multiselect" id="admin-code-filter"><button type="button" aria-expanded="false"><span>Todos os códigos</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <div class="field"><span>Produto</span><div class="filter-multiselect" id="admin-product-filter"><button type="button" aria-expanded="false"><span>Todos os produtos</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
           <div class="admin-source"><span>Base atual</span><strong id="admin-source-file">Nenhum arquivo importado</strong><small id="admin-source-date">—</small></div>
           <button class="button secondary" id="refresh-admin-button" type="button">Atualizar painel</button>
         </div>
@@ -341,6 +341,7 @@
             <table class="seller-table admin-table">
               <thead><tr id="admin-table-head"><th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th><th>AGO-26</th><th>SET-26</th><th>OUT-26</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
               <tbody id="admin-table-body"></tbody>
+              <tfoot id="admin-table-total"></tfoot>
             </table>
           </div>
           <div class="empty-state" id="admin-empty"><strong>Nenhuma base importada</strong><span>Use o menu Gestão Banco de dados para carregar a planilha Master de Parceiros.</span></div>
@@ -405,6 +406,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-16"></script>
+  <script src="./app.js?v=20261013-17"></script>
 </body>
 </html>

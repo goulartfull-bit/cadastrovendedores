@@ -50,6 +50,7 @@ const adminCodeFilter = document.querySelector('#admin-code-filter');
 const adminProductFilter = document.querySelector('#admin-product-filter');
 const adminTableBody = document.querySelector('#admin-table-body');
 const adminTableHead = document.querySelector('#admin-table-head');
+const adminTableTotal = document.querySelector('#admin-table-total');
 const adminEmpty = document.querySelector('#admin-empty');
 const adminRowCount = document.querySelector('#admin-row-count');
 const adminPdvCount = document.querySelector('#admin-pdv-count');
@@ -834,6 +835,42 @@ function formatPercent(value) {
   return `${(Math.abs(number) <= 3 ? number * 100 : number).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
 
+function multiFilterValues(control) {
+  return new Set([...control.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value));
+}
+
+function updateMultiFilterLabel(control) {
+  const checked = [...control.querySelectorAll('input[type="checkbox"]:checked')];
+  const label = control.dataset.allLabel || 'Todos';
+  control.querySelector('button span').textContent = checked.length === 0 ? label : (checked.length === 1 ? checked[0].dataset.label : `${checked.length} selecionados`);
+}
+
+function populateMultiFilter(control, values, allLabel, defaultValue = '') {
+  const selected = multiFilterValues(control);
+  if (!selected.size && defaultValue) selected.add(defaultValue);
+  control.dataset.allLabel = allLabel;
+  const options = control.querySelector('.filter-options');
+  options.replaceChildren(...values.map((value) => {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = value;
+    input.dataset.label = value;
+    input.checked = selected.has(value);
+    label.append(input, document.createTextNode(value));
+    return label;
+  }));
+  updateMultiFilterLabel(control);
+}
+
+function closeMultiFilters(except = null) {
+  document.querySelectorAll('.filter-multiselect').forEach((control) => {
+    if (control === except) return;
+    control.querySelector('button').setAttribute('aria-expanded', 'false');
+    control.querySelector('.filter-options').hidden = true;
+  });
+}
+
 function renderProductScorecards(rows) {
   const products = new Map();
   for (const row of rows) {
@@ -899,17 +936,18 @@ function recentMonthLabels(rows) {
 }
 
 function renderAdministrative() {
-  const manager = adminManagerFilter.value || 'Thiago Goulart';
-  const regional = adminRegionFilter.value;
-  const code = adminCodeFilter.value;
-  const product = adminProductFilter.value;
+  const managers = multiFilterValues(adminManagerFilter);
+  const regions = multiFilterValues(adminRegionFilter);
+  const codes = multiFilterValues(adminCodeFilter);
+  const products = multiFilterValues(adminProductFilter);
   const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
   const rows = administrativeRows.filter((row) => {
     const data = row.data || row;
-    return row.manager === manager
-      && (!code || row.codigo === code)
-      && (!regional || regionByCode.get(row.codigo) === regional)
-      && (!product || String(data.plataforma || '').trim() === product);
+    const rowCode = row.codigo || data.codigo;
+    return (!managers.size || managers.has(row.manager))
+      && (!codes.size || codes.has(rowCode))
+      && (!regions.size || regions.has(regionByCode.get(rowCode)))
+      && (!products.size || products.has(String(data.plataforma || '').trim()));
   });
   const monthLabels = recentMonthLabels(rows);
   adminTableHead.innerHTML = `<th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th>${monthLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th>`;
@@ -927,10 +965,22 @@ function renderAdministrative() {
     tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td>${historyCells}<td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td><strong class="achievement-value ${achievementReached ? 'positive' : 'negative'}">${formatPercent(data.atingimento)}</strong></td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
     adminTableBody.appendChild(tr);
   }
+  const monthTotals = monthLabels.map((label) => rows.reduce((sum, row) => {
+    const data = row.data || row;
+    const history = new Map((Array.isArray(data.history) ? data.history : []).map((month) => [String(month.label || '').trim(), month.value]));
+    if (!history.size && String(data.current_month || '').trim() === label) return sum + numericValue(data.realizado);
+    return sum + numericValue(history.get(label));
+  }, 0));
   const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
   const realizado = rows.reduce((sum, row) => sum + numericValue((row.data || row).realizado), 0);
   const tendencia = rows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
   const meta = rows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
+  const gap = rows.reduce((sum, row) => sum + numericValue((row.data || row).gap), 0);
+  const ytd25 = rows.reduce((sum, row) => sum + numericValue((row.data || row).ytd25), 0);
+  const ytd26 = rows.reduce((sum, row) => sum + numericValue((row.data || row).ytd26), 0);
+  const totalAchievement = meta ? tendencia / meta : 0;
+  const totalYtd = ytd25 ? (ytd26 / ytd25) - 1 : 0;
+  adminTableTotal.innerHTML = `<tr><th colspan="5">TOTAL FILTRADO</th>${monthTotals.map((value) => `<td>${formatNumber(value)}</td>`).join('')}<td>${formatNumber(tendencia)}</td><td>${formatNumber(meta)}</td><td>${formatNumber(gap)}</td><td><strong class="achievement-value ${totalAchievement >= 1 ? 'positive' : 'negative'}">${formatPercent(totalAchievement)}</strong></td><td>${formatNumber(ytd25)}</td><td>${formatNumber(ytd26)}</td><td><strong class="achievement-value ${totalYtd >= 0 ? 'positive' : 'negative'}">${formatPercent(totalYtd)}</strong></td></tr>`;
   const currentMonth = monthLabels.at(-1) || 'Mês atual';
   adminRowCount.textContent = String(rows.length);
   adminPdvCount.textContent = String(distinctPdvs);
@@ -946,27 +996,23 @@ function renderAdministrative() {
 }
 
 function updateAdministrativeFilters() {
-  const manager = adminManagerFilter.value || 'Thiago Goulart';
-  const currentRegion = adminRegionFilter.value;
   const regions = [...new Set(storeRegions.map((item) => item.regional))].sort();
-  adminRegionFilter.replaceChildren(new Option('Todas as regionais', ''), ...regions.map((region) => new Option(region, region)));
-  adminRegionFilter.value = regions.includes(currentRegion) ? currentRegion : '';
+  populateMultiFilter(adminRegionFilter, regions, 'Todas as regionais');
+  const selectedManagers = multiFilterValues(adminManagerFilter);
+  const selectedRegions = multiFilterValues(adminRegionFilter);
   const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
-  const managerRows = administrativeRows.filter((row) => row.manager === manager);
+  const managerRows = administrativeRows.filter((row) => !selectedManagers.size || selectedManagers.has(row.manager));
   const managerCodes = [...new Set(managerRows
-    .filter((row) => !adminRegionFilter.value || regionByCode.get(row.codigo) === adminRegionFilter.value)
-    .map((row) => row.codigo))].sort();
-  const currentCode = adminCodeFilter.value;
-  adminCodeFilter.replaceChildren(new Option('Todos os códigos', ''), ...managerCodes.map((code) => new Option(code, code)));
-  adminCodeFilter.value = managerCodes.includes(currentCode) ? currentCode : '';
-  const currentProduct = adminProductFilter.value;
+    .filter((row) => !selectedRegions.size || selectedRegions.has(regionByCode.get(row.codigo)))
+    .map((row) => row.codigo || row.data?.codigo))].filter(Boolean).sort();
+  populateMultiFilter(adminCodeFilter, managerCodes, 'Todos os códigos');
+  const selectedCodes = multiFilterValues(adminCodeFilter);
   const products = [...new Set(managerRows
-    .filter((row) => !adminRegionFilter.value || regionByCode.get(row.codigo) === adminRegionFilter.value)
-    .filter((row) => !adminCodeFilter.value || row.codigo === adminCodeFilter.value)
+    .filter((row) => !selectedRegions.size || selectedRegions.has(regionByCode.get(row.codigo)))
+    .filter((row) => !selectedCodes.size || selectedCodes.has(row.codigo || row.data?.codigo))
     .map((row) => String((row.data || row).plataforma || '').trim())
     .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  adminProductFilter.replaceChildren(new Option('Todos os produtos', ''), ...products.map((product) => new Option(product, product)));
-  adminProductFilter.value = products.includes(currentProduct) ? currentProduct : '';
+  populateMultiFilter(adminProductFilter, products, 'Todos os produtos');
 }
 
 function renderStoreRegions() {
@@ -1002,9 +1048,7 @@ async function loadAdministrative() {
       if (page.length < 1000) break;
     }
     const managers = [...new Set(administrativeRows.map((row) => row.manager))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    const current = adminManagerFilter.value || 'Thiago Goulart';
-    adminManagerFilter.replaceChildren(...(managers.length ? managers : ['Thiago Goulart']).map((manager) => new Option(manager, manager)));
-    adminManagerFilter.value = managers.includes(current) ? current : (managers.includes('Thiago Goulart') ? 'Thiago Goulart' : managers[0]);
+    populateMultiFilter(adminManagerFilter, managers.length ? managers : ['Thiago Goulart'], 'Todos os gestores', managers.includes('Thiago Goulart') ? 'Thiago Goulart' : '');
     updateAdministrativeFilters();
     renderAdministrative();
   } catch (error) {
@@ -1256,10 +1300,22 @@ accessForm.addEventListener('submit', async (event) => {
 
 refreshAccessButton.addEventListener('click', loadAccessUsers);
 refreshAdminButton.addEventListener('click', loadAdministrative);
-adminManagerFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
-adminRegionFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
-adminCodeFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
-adminProductFilter.addEventListener('change', renderAdministrative);
+document.querySelectorAll('.filter-multiselect').forEach((control) => {
+  const button = control.querySelector('button');
+  button.addEventListener('click', () => {
+    const open = button.getAttribute('aria-expanded') !== 'true';
+    closeMultiFilters(open ? control : null);
+    button.setAttribute('aria-expanded', String(open));
+    control.querySelector('.filter-options').hidden = !open;
+  });
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.filter-multiselect')) closeMultiFilters();
+});
+adminManagerFilter.addEventListener('change', () => { updateMultiFilterLabel(adminManagerFilter); updateAdministrativeFilters(); renderAdministrative(); });
+adminRegionFilter.addEventListener('change', () => { updateMultiFilterLabel(adminRegionFilter); updateAdministrativeFilters(); renderAdministrative(); });
+adminCodeFilter.addEventListener('change', () => { updateMultiFilterLabel(adminCodeFilter); updateAdministrativeFilters(); renderAdministrative(); });
+adminProductFilter.addEventListener('change', () => { updateMultiFilterLabel(adminProductFilter); renderAdministrative(); });
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
   if (file) previewAdministrativeFile(file);
