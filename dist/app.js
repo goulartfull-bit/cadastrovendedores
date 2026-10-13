@@ -815,7 +815,12 @@ function renderAdministrative() {
 async function loadAdministrative() {
   refreshAdminButton.disabled = true;
   try {
-    administrativeRows = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', {}, true) || [];
+    administrativeRows = [];
+    for (let offset = 0; ; offset += 1000) {
+      const page = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', { headers: { Range: `${offset}-${offset + 999}` } }, true) || [];
+      administrativeRows.push(...page);
+      if (page.length < 1000) break;
+    }
     const managers = [...new Set(administrativeRows.map((row) => row.manager))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const current = adminManagerFilter.value || 'Thiago Goulart';
     adminManagerFilter.replaceChildren(...(managers.length ? managers : ['Thiago Goulart']).map((manager) => new Option(manager, manager)));

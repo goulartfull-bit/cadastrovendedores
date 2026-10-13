@@ -31,7 +31,7 @@ begin
     raise exception 'Formato de dados inválido';
   end if;
 
-  delete from public.administrativo_m5;
+  delete from public.administrativo_m5 where id is not null;
 
   insert into public.administrativo_m5 (manager, codigo, source_file, data)
   select
