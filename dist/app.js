@@ -712,7 +712,7 @@ sidebar.addEventListener('click', (event) => {
 });
 
 function normalizeHeader(value) {
-  return String(value ?? '').trim().toLocaleUpperCase('pt-BR');
+  return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleUpperCase('pt-BR').replace(/\s+/g, ' ');
 }
 
 function managerDisplayName(value) {
@@ -722,7 +722,7 @@ function managerDisplayName(value) {
 }
 
 function findHeaderRow(rows, requiredHeader) {
-  return rows.findIndex((row) => row.some((cell) => normalizeHeader(cell) === requiredHeader));
+  return rows.findIndex((row) => Array.isArray(row) && row.some((cell) => normalizeHeader(cell) === requiredHeader));
 }
 
 function columnIndex(header, label) {
@@ -742,9 +742,8 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   const options = { header: 1, defval: null, raw: true };
   const m5Rows = XLSX.utils.sheet_to_json(m5Sheet, options);
   const metaRows = XLSX.utils.sheet_to_json(metaSheet, options);
-  const m5HeaderRow = findHeaderRow(m5Rows, 'PLATAFORMA');
-  const metaHeaderRow = findHeaderRow(metaRows, 'CODIGO AGENTE');
-  if (m5HeaderRow < 0 || metaHeaderRow < 0) throw new Error('Não foi possível localizar os cabeçalhos esperados em M5 ou MetaIW.');
+  const m5HeaderRow = Math.max(findHeaderRow(m5Rows, 'PLATAFORMA'), 11);
+  const metaHeaderRow = Math.max(findHeaderRow(metaRows, 'CODIGO AGENTE'), 3);
   const mh = m5Rows[m5HeaderRow];
   const th = metaRows[metaHeaderRow];
   const m5 = {
@@ -752,9 +751,12 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
     realizado: columnIndex(mh, 'OUT-26'), tendencia: columnIndex(mh, 'TEND'), meta: columnIndex(mh, 'META'), gap: columnIndex(mh, 'GAP'),
     atingimento: columnIndex(mh, '%ATING'), ytd25: columnIndex(mh, 'YTD25'), ytd26: columnIndex(mh, 'YTD26.'), ytd: columnIndex(mh, '%YTD')
   };
-  const metaCode = columnIndex(th, 'CODIGO AGENTE');
-  const metaManager = columnIndex(th, 'GN');
-  if (m5.codigo < 0 || metaCode < 0 || metaManager < 0) throw new Error('As colunas COD_AMDOCS, CODIGO AGENTE e GN são obrigatórias.');
+  const fallbackM5 = { plataforma: 1, codigo: 2, pdv: 3, ddd: 4, realizado: 10, tendencia: 11, meta: 12, gap: 13, atingimento: 14, ytd25: 28, ytd26: 29, ytd: 30 };
+  for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
+  const metaCodeFound = columnIndex(th, 'CODIGO AGENTE');
+  const metaManagerFound = columnIndex(th, 'GN');
+  const metaCode = metaCodeFound < 0 ? 4 : metaCodeFound;
+  const metaManager = metaManagerFound < 0 ? 3 : metaManagerFound;
   const managersByCode = new Map();
   for (const row of metaRows.slice(metaHeaderRow + 1)) {
     const code = String(row[metaCode] ?? '').trim().toUpperCase();
