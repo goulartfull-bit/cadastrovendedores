@@ -47,6 +47,7 @@ const adminRegionFilter = document.querySelector('#admin-region-filter');
 const adminCodeFilter = document.querySelector('#admin-code-filter');
 const adminProductFilter = document.querySelector('#admin-product-filter');
 const adminTableBody = document.querySelector('#admin-table-body');
+const adminTableHead = document.querySelector('#admin-table-head');
 const adminEmpty = document.querySelector('#admin-empty');
 const adminRowCount = document.querySelector('#admin-row-count');
 const adminPdvCount = document.querySelector('#admin-pdv-count');
@@ -818,29 +819,37 @@ function renderProductScorecards(rows) {
   for (const row of rows) {
     const data = row.data || row;
     const product = String(data.plataforma || 'Sem produto').trim();
-    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [] });
+    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0 });
     const summary = products.get(product);
     summary.realizado += numericValue(data.realizado);
     summary.meta += numericValue(data.meta);
     summary.tendencia += numericValue(data.tendencia);
-    for (const month of Array.isArray(data.history) ? data.history : []) {
-      const label = String(month.label || '').trim();
-      if (!label) continue;
-      if (!summary.history.has(label)) summary.monthOrder.push(label);
-      summary.history.set(label, (summary.history.get(label) || 0) + numericValue(month.value));
-    }
   }
   adminProductCards.replaceChildren();
   for (const summary of [...products.values()].sort((a, b) => b.realizado - a.realizado)) {
-    const history = summary.monthOrder.slice(-3).map((label) => ({ label, value: summary.history.get(label) || 0 }));
-    const maxHistory = Math.max(1, ...history.map((item) => item.value));
     const article = document.createElement('article');
     article.className = 'product-score-card';
-    const historyMarkup = history.length ? history.map((item) => `<div class="history-point"><span class="history-bar"><i style="height:${Math.max(6, (item.value / maxHistory) * 100)}%"></i></span><strong>${formatNumber(item.value)}</strong><small>${escapeHtml(item.label)}</small></div>`).join('') : '<p class="history-unavailable">Atualize a base para carregar o histórico.</p>';
-    article.innerHTML = `<header><div><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><div class="score-history" aria-label="Histórico dos últimos três meses de ${escapeHtml(summary.product)}">${historyMarkup}</div>`;
+    article.innerHTML = `<header><div><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div>`;
     adminProductCards.appendChild(article);
   }
   adminProductEmpty.hidden = products.size > 0;
+}
+
+function recentMonthLabels(rows) {
+  const labels = [];
+  for (const row of rows) {
+    for (const month of Array.isArray((row.data || row).history) ? (row.data || row).history : []) {
+      const label = String(month.label || '').trim();
+      if (label && !labels.includes(label)) labels.push(label);
+    }
+  }
+  if (labels.length) return labels.slice(-3);
+  const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  const now = new Date();
+  return [2, 1, 0].map((offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    return `${monthNames[date.getMonth()]}-${String(date.getFullYear()).slice(-2)}`;
+  });
 }
 
 function renderAdministrative() {
@@ -856,19 +865,25 @@ function renderAdministrative() {
       && (!regional || regionByCode.get(row.codigo) === regional)
       && (!product || String(data.plataforma || '').trim() === product);
   });
+  const monthLabels = recentMonthLabels(rows);
+  adminTableHead.innerHTML = `<th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th>${monthLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th>`;
   adminTableBody.replaceChildren();
   for (const row of rows) {
     const data = row.data || row;
     const tr = document.createElement('tr');
     const rowCode = row.codigo || data.codigo;
-    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td><td>${formatNumber(data.realizado)}</td><td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
+    const history = new Map((Array.isArray(data.history) ? data.history : []).map((month) => [String(month.label || '').trim(), month.value]));
+    const currentLabel = String(data.current_month || monthLabels.at(-1) || '').trim();
+    if (!history.size && currentLabel) history.set(currentLabel, data.realizado);
+    const historyCells = monthLabels.map((label) => `<td>${history.has(label) ? formatNumber(history.get(label)) : '—'}</td>`).join('');
+    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td>${historyCells}<td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
     adminTableBody.appendChild(tr);
   }
   const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
   const realizado = rows.reduce((sum, row) => sum + numericValue((row.data || row).realizado), 0);
   const tendencia = rows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
   const meta = rows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
-  const currentMonth = (rows.find((row) => (row.data || row).current_month)?.data || rows.find((row) => row.current_month))?.current_month || 'Mês atual';
+  const currentMonth = monthLabels.at(-1) || 'Mês atual';
   adminRowCount.textContent = String(rows.length);
   adminPdvCount.textContent = String(distinctPdvs);
   adminRealizado.textContent = formatNumber(realizado);
