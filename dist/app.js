@@ -556,6 +556,9 @@ async function downloadSgt3(sourceData = null, triggerButton = sgt3Button) {
   const originalLabel = triggerButton.innerHTML;
   triggerButton.textContent = 'Gerando…';
   try {
+    const settings = await apiRequest('/rest/v1/system_settings?key=eq.sgt3_manager&select=value', {}, true);
+    const fixedManager = settings?.[0]?.value;
+    if (!fixedManager?.cpf || !fixedManager?.name) throw new Error('Dados protegidos do gestor não configurados.');
     const records = Array.isArray(sourceData) ? sourceData : [sourceData || Object.fromEntries(new FormData(form))];
     const response = await fetch('./assets/SGT3_CRIACAO_IDENTIDADE_TERCEIRO.xlsx');
     if (!response.ok) throw new Error('Modelo SGT3 não encontrado.');
@@ -579,13 +582,13 @@ async function downloadSgt3(sourceData = null, triggerButton = sgt3Button) {
         S6: data.sgt_quarterizada || '', T6: '', U6: '', V6: data.sgt_regime || '', W6: data.sgt_contrato || '',
         X6: dateToPtBr(data.sgt_vigencia), Y6: data.sgt_unidade || '', Z6: data.sgt_categoria_claro || '',
         AA6: data.sgt_categoria_embratel || '', AB6: data.sgt_regional || '', AC6: uf, AD6: city,
-        AF6: data.sgt_nome_gestor || ''
+        AF6: fixedManager.name
       };
       for (const [reference, value] of Object.entries(values)) setSpreadsheetCell(xml, spreadsheetReferenceAtRow(reference, rowNumber), value);
       setSpreadsheetCell(xml, spreadsheetReferenceAtRow('I6', rowNumber), onlyDigits(data.cpf), true);
       setSpreadsheetCell(xml, spreadsheetReferenceAtRow('M6', rowNumber), onlyDigits(data.celular), true);
       setSpreadsheetCell(xml, spreadsheetReferenceAtRow('P6', rowNumber), onlyDigits(data.cnpj), true);
-      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('AE6', rowNumber), onlyDigits(data.sgt_cpf_gestor), true);
+      setSpreadsheetCell(xml, spreadsheetReferenceAtRow('AE6', rowNumber), onlyDigits(fixedManager.cpf), true);
     });
     zip.file(sheetPath, new XMLSerializer().serializeToString(xml));
     const output = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1076,7 +1079,7 @@ showView(location.hash.replace('#', '') || 'cadastro', false);
 function setFields(values, notify = true) {
   for (const [name, value] of Object.entries(values || {})) {
     const field = form.elements.namedItem(name);
-    if (field && typeof value === 'string') field.value = value;
+    if (field && typeof value === 'string' && !field.disabled) field.value = value;
   }
   if (notify) showToast('Campos atualizados.');
   return Object.fromEntries(new FormData(form));

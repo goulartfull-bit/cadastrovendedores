@@ -150,8 +150,8 @@
             <label class="field">Categoria de serviço Claro/NET<select name="sgt_categoria_claro" required><option>TERCEIRIZAÇÃO</option><option>PROJETO</option><option>SERVIÇO</option><option>TEMPORÁRIO</option><option selected>PARCERIA COMERCIAL</option><option>SUPORTE</option></select></label>
             <label class="field">Categoria de serviço Embratel<select name="sgt_categoria_embratel" required><option>SEGURANÇA</option><option>MANUTENÇÃO</option><option>CONSERVAÇÃO</option><option>COPEIRAGEM</option><option>CONSULTORIA/AUTÔNOMO</option><option>SERVIÇOS DE APOIO</option><option>APOIO A PROCESSO DE INFORMÁTICA</option><option>ENGENHARIA/PROJETOS</option><option>REVENDAS LIVRE</option><option selected>VENDEDORES LOJA CLARO_NET_EMBRATEL</option><option>CALL CENTER (ATENTO)</option></select></label>
             <label class="field">Regional SGT3<select name="sgt_regional" required><option>CLARO MATRIZ - MATRIZ SÃO PAULO</option><option>CLARO BS - BAHIA / SERGIPE</option><option selected>CLARO CO - CENTRO OESTE</option><option>CLARO MG - MINAS GERAIS</option><option>CLARO NE - NORDESTE</option><option>CLARO NO - NORTE</option><option>CLARO OS - PARANÁ / SANTA CATARINA</option><option>CLARO RJ - MATRIZ RIO DE JANEIRO</option><option>CLARO RJ - REGIONAL RIO DE JANEIRO</option><option>CLARO RS - RIO GRANDE DO SUL</option><option>CLARO SI - SÃO PAULO / INTERIOR</option><option>CLARO SP - REGIONAL SÃO PAULO</option></select></label>
-            <label class="field">CPF do gestor responsável<input name="sgt_cpf_gestor" required inputmode="numeric" placeholder="000.000.000-00"></label>
-            <label class="field">Nome do gestor responsável<input name="sgt_nome_gestor" required placeholder="Coordenador, gerente ou superior"></label>
+            <label class="field">CPF do gestor responsável<span class="field-hint">Preenchido automaticamente na planilha</span><input name="sgt_cpf_gestor" value="Dados protegidos" disabled aria-disabled="true"></label>
+            <label class="field">Nome do gestor responsável<span class="field-hint">Coordenadora responsável fixa</span><input name="sgt_nome_gestor" value="Preenchimento automático" disabled aria-disabled="true"></label>
           </div>
           <div class="info-box"><span aria-hidden="true">i</span><p>Para carregar no SGT3, abra o arquivo baixado e salve a aba “SGT3 - PREENCHER” no formato CSV separado por vírgulas.</p></div>
         </section>
@@ -386,6 +386,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-3"></script>
+  <script src="./app.js?v=20261013-5"></script>
 </body>
 </html>
