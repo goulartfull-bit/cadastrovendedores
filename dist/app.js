@@ -45,6 +45,7 @@ const refreshArchivedButton = document.querySelector('#refresh-archived-button')
 const adminManagerFilter = document.querySelector('#admin-manager-filter');
 const adminRegionFilter = document.querySelector('#admin-region-filter');
 const adminCodeFilter = document.querySelector('#admin-code-filter');
+const adminProductFilter = document.querySelector('#admin-product-filter');
 const adminTableBody = document.querySelector('#admin-table-body');
 const adminEmpty = document.querySelector('#admin-empty');
 const adminRowCount = document.querySelector('#admin-row-count');
@@ -846,8 +847,15 @@ function renderAdministrative() {
   const manager = adminManagerFilter.value || 'Thiago Goulart';
   const regional = adminRegionFilter.value;
   const code = adminCodeFilter.value;
+  const product = adminProductFilter.value;
   const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
-  const rows = administrativeRows.filter((row) => row.manager === manager && (!code || row.codigo === code) && (!regional || regionByCode.get(row.codigo) === regional));
+  const rows = administrativeRows.filter((row) => {
+    const data = row.data || row;
+    return row.manager === manager
+      && (!code || row.codigo === code)
+      && (!regional || regionByCode.get(row.codigo) === regional)
+      && (!product || String(data.plataforma || '').trim() === product);
+  });
   adminTableBody.replaceChildren();
   for (const row of rows) {
     const data = row.data || row;
@@ -884,6 +892,13 @@ function updateAdministrativeFilters() {
   const regions = [...new Set(storeRegions.map((item) => item.regional))].sort();
   adminRegionFilter.replaceChildren(new Option('Todas as regionais', ''), ...regions.map((region) => new Option(region, region)));
   adminRegionFilter.value = regions.includes(currentRegion) ? currentRegion : '';
+  const currentProduct = adminProductFilter.value;
+  const products = [...new Set(administrativeRows
+    .filter((row) => row.manager === manager)
+    .map((row) => String((row.data || row).plataforma || '').trim())
+    .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  adminProductFilter.replaceChildren(new Option('Todos os produtos', ''), ...products.map((product) => new Option(product, product)));
+  adminProductFilter.value = products.includes(currentProduct) ? currentProduct : '';
 }
 
 function renderStoreRegions() {
@@ -1172,6 +1187,7 @@ refreshAdminButton.addEventListener('click', loadAdministrative);
 adminManagerFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
 adminRegionFilter.addEventListener('change', renderAdministrative);
 adminCodeFilter.addEventListener('change', renderAdministrative);
+adminProductFilter.addEventListener('change', renderAdministrative);
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
   if (file) previewAdministrativeFile(file);
