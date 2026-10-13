@@ -774,7 +774,7 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
     atingimento: columnIndex(mh, '%ATING'), ytd25: columnIndex(mh, 'YTD25'), ytd26: columnIndex(mh, 'YTD26.'), ytd: columnIndex(mh, '%YTD')
   };
   const monthColumns = mh.map((cell, index) => ({ label: normalizeHeader(cell), index })).filter((item) => /^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\d{2}$/.test(item.label));
-  const recentMonthColumns = monthColumns.slice(-3);
+  const recentMonthColumns = monthColumns.filter((month) => month.index <= m5.realizado).slice(-3);
   const currentMonthLabel = recentMonthColumns.at(-1)?.label || 'Mês atual';
   const fallbackM5 = { plataforma: 1, codigo: 2, pdv: 3, ddd: 4, realizado: 10, tendencia: 11, meta: 12, gap: 13, atingimento: 14, ytd25: 28, ytd26: 29, ytd: 30 };
   for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
