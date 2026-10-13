@@ -852,7 +852,8 @@ function renderProductScorecards(rows) {
       }
       changeText += ` vs ${comparisonMonths[0]}`;
     }
-    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
+    const targetAchievement = summary.meta ? formatPercent(summary.tendencia / summary.meta) : '—';
+    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div><div class="target-achievement"><dt>Ating. meta</dt><dd>${targetAchievement}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
     adminProductCards.appendChild(article);
   }
   adminProductEmpty.hidden = products.size > 0;
