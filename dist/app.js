@@ -43,6 +43,8 @@ const clearArchivedSelectionButton = document.querySelector('#clear-archived-sel
 const restoreSelectedButton = document.querySelector('#restore-selected-button');
 const refreshArchivedButton = document.querySelector('#refresh-archived-button');
 const adminManagerFilter = document.querySelector('#admin-manager-filter');
+const adminRegionFilter = document.querySelector('#admin-region-filter');
+const adminCodeFilter = document.querySelector('#admin-code-filter');
 const adminTableBody = document.querySelector('#admin-table-body');
 const adminEmpty = document.querySelector('#admin-empty');
 const adminRowCount = document.querySelector('#admin-row-count');
@@ -61,6 +63,10 @@ const databaseRowCount = document.querySelector('#database-row-count');
 const databaseThiagoCount = document.querySelector('#database-thiago-count');
 const databaseUploadStatus = document.querySelector('#database-upload-status');
 const databaseUploadButton = document.querySelector('#database-upload-button');
+const storeRegionForm = document.querySelector('#store-region-form');
+const storeRegionList = document.querySelector('#store-region-list');
+const storeRegionEmpty = document.querySelector('#store-region-empty');
+const refreshStoreRegionsButton = document.querySelector('#refresh-store-regions-button');
 const supabaseUrl = 'https://vfkujizbdrmehnzrltjn.supabase.co';
 const supabaseKey = 'sb_publishable_Domo6GFCB987jd6GBb15jg_WddoFPre';
 const authStorageKey = 'gestao-agente-autorizado-session';
@@ -73,8 +79,10 @@ let pendingProtectedView = null;
 let accessUsers = [];
 let administrativeRows = [];
 let pendingAdministrativeImport = null;
+let storeRegions = [];
 sidebar.classList.remove('open');
-menuButton.setAttribute('aria-expanded', 'false');
+if (window.innerWidth > 820 && localStorage.getItem('gestao-sidebar-collapsed') === 'true') sidebar.classList.add('collapsed');
+menuButton.setAttribute('aria-expanded', String(!sidebar.classList.contains('collapsed')));
 
 function showToast(message) {
   toast.textContent = message;
@@ -704,8 +712,14 @@ form.addEventListener('reset', () => window.setTimeout(() => {
   showToast('Dados originais restaurados.');
 }, 0));
 menuButton.addEventListener('click', () => {
-  const open = sidebar.classList.toggle('open');
-  menuButton.setAttribute('aria-expanded', String(open));
+  if (window.innerWidth <= 820) {
+    const open = sidebar.classList.toggle('open');
+    menuButton.setAttribute('aria-expanded', String(open));
+    return;
+  }
+  const collapsed = sidebar.classList.toggle('collapsed');
+  localStorage.setItem('gestao-sidebar-collapsed', String(collapsed));
+  menuButton.setAttribute('aria-expanded', String(!collapsed));
 });
 sidebar.addEventListener('click', (event) => {
   if (event.target.closest('a') && window.innerWidth <= 820) {
@@ -792,12 +806,16 @@ function formatPercent(value) {
 
 function renderAdministrative() {
   const manager = adminManagerFilter.value || 'Thiago Goulart';
-  const rows = administrativeRows.filter((row) => row.manager === manager);
+  const regional = adminRegionFilter.value;
+  const code = adminCodeFilter.value;
+  const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
+  const rows = administrativeRows.filter((row) => row.manager === manager && (!code || row.codigo === code) && (!regional || regionByCode.get(row.codigo) === regional));
   adminTableBody.replaceChildren();
   for (const row of rows) {
     const data = row.data || row;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(row.codigo || data.codigo)}</strong></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td><td>${formatNumber(data.realizado)}</td><td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
+    const rowCode = row.codigo || data.codigo;
+    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td><td>${formatNumber(data.realizado)}</td><td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
     adminTableBody.appendChild(tr);
   }
   const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
@@ -815,9 +833,44 @@ function renderAdministrative() {
   adminSourceDate.textContent = latest?.imported_at ? `Atualizado em ${new Date(latest.imported_at).toLocaleString('pt-BR')}` : '—';
 }
 
+function updateAdministrativeFilters() {
+  const manager = adminManagerFilter.value || 'Thiago Goulart';
+  const managerCodes = [...new Set(administrativeRows.filter((row) => row.manager === manager).map((row) => row.codigo))].sort();
+  const currentCode = adminCodeFilter.value;
+  adminCodeFilter.replaceChildren(new Option('Todos os códigos', ''), ...managerCodes.map((code) => new Option(code, code)));
+  adminCodeFilter.value = managerCodes.includes(currentCode) ? currentCode : '';
+  const currentRegion = adminRegionFilter.value;
+  const regions = [...new Set(storeRegions.map((item) => item.regional))].sort();
+  adminRegionFilter.replaceChildren(new Option('Todas as regionais', ''), ...regions.map((region) => new Option(region, region)));
+  adminRegionFilter.value = regions.includes(currentRegion) ? currentRegion : '';
+}
+
+function renderStoreRegions() {
+  storeRegionList.replaceChildren();
+  for (const item of storeRegions) {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td><strong>${escapeHtml(item.code)}</strong></td><td><span class="region-chip">${escapeHtml(item.regional)}</span></td><td>${new Date(item.updated_at).toLocaleDateString('pt-BR')}</td><td><button class="button secondary" type="button">Editar</button></td>`;
+    row.querySelector('button').addEventListener('click', () => {
+      storeRegionForm.elements.code.value = item.code;
+      storeRegionForm.elements.regional.value = item.regional;
+      storeRegionForm.elements.code.focus();
+    });
+    storeRegionList.appendChild(row);
+  }
+  storeRegionEmpty.hidden = storeRegions.length > 0;
+}
+
+async function loadStoreRegions() {
+  const rows = await apiRequest('/rest/v1/store_regions?select=code,regional,updated_at&order=code.asc', {}, true);
+  storeRegions = rows || [];
+  renderStoreRegions();
+  updateAdministrativeFilters();
+}
+
 async function loadAdministrative() {
   refreshAdminButton.disabled = true;
   try {
+    await loadStoreRegions();
     administrativeRows = [];
     for (let offset = 0; ; offset += 1000) {
       const page = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', { headers: { Range: `${offset}-${offset + 999}` } }, true) || [];
@@ -828,6 +881,7 @@ async function loadAdministrative() {
     const current = adminManagerFilter.value || 'Thiago Goulart';
     adminManagerFilter.replaceChildren(...(managers.length ? managers : ['Thiago Goulart']).map((manager) => new Option(manager, manager)));
     adminManagerFilter.value = managers.includes(current) ? current : (managers.includes('Thiago Goulart') ? 'Thiago Goulart' : managers[0]);
+    updateAdministrativeFilters();
     renderAdministrative();
   } catch (error) {
     showToast(error.message || 'Não foi possível carregar a base administrativa.');
@@ -873,6 +927,26 @@ async function uploadAdministrativeData() {
     showToast(databaseUploadStatus.textContent);
   } finally {
     databaseUploadButton.disabled = false;
+  }
+}
+
+async function saveStoreRegion(event) {
+  event.preventDefault();
+  const submit = storeRegionForm.querySelector('button[type="submit"]');
+  const payload = Object.fromEntries(new FormData(storeRegionForm));
+  payload.code = String(payload.code || '').trim().toUpperCase();
+  if (!payload.code || !payload.regional) return;
+  submit.disabled = true;
+  try {
+    await apiRequest('/rest/v1/store_regions?on_conflict=code', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ code: payload.code, regional: payload.regional, updated_at: new Date().toISOString() }) }, true);
+    storeRegionForm.reset();
+    await loadStoreRegions();
+    renderAdministrative();
+    showToast(`Loja ${payload.code} salva em ${payload.regional}.`);
+  } catch (error) {
+    showToast(error.message || 'Não foi possível salvar a loja.');
+  } finally {
+    submit.disabled = false;
   }
 }
 
@@ -990,6 +1064,7 @@ async function showView(viewName, updateHash = true) {
   if (viewName === 'bd-vendedores') await loadArchivedSellers();
   if (viewName === 'acessos') await loadAccessUsers();
   if (viewName === 'administrativo') await loadAdministrative();
+  if (viewName === 'gestao-banco') await loadStoreRegions();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1053,12 +1128,16 @@ accessForm.addEventListener('submit', async (event) => {
 
 refreshAccessButton.addEventListener('click', loadAccessUsers);
 refreshAdminButton.addEventListener('click', loadAdministrative);
-adminManagerFilter.addEventListener('change', renderAdministrative);
+adminManagerFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
+adminRegionFilter.addEventListener('change', renderAdministrative);
+adminCodeFilter.addEventListener('change', renderAdministrative);
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
   if (file) previewAdministrativeFile(file);
 });
 databaseUploadButton.addEventListener('click', uploadAdministrativeData);
+storeRegionForm.addEventListener('submit', saveStoreRegion);
+refreshStoreRegionsButton.addEventListener('click', loadStoreRegions);
 
 logoutButton.addEventListener('click', () => {
   sessionStorage.removeItem(authStorageKey);

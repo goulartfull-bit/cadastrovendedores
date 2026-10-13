@@ -50,7 +50,7 @@
 
   <main id="top">
     <header class="topbar">
-      <button class="menu-button" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
+      <button class="menu-button" type="button" aria-label="Expandir ou reduzir menu" aria-expanded="true">☰</button>
       <div class="topbar-path"><span>Gestão Agente Autorizado</span><b>/</b><strong id="current-view-label">Novo vendedor</strong></div>
       <button class="logout-button" id="logout-button" type="button" hidden>Sair</button>
       <div class="topbar-brand"><span>GESTÃO</span><strong>AGENTE AUTORIZADO</strong></div>
@@ -321,6 +321,8 @@
         </header>
         <div class="admin-toolbar">
           <label class="field">Gestor<select id="admin-manager-filter"><option value="Thiago Goulart">Thiago Goulart</option></select></label>
+          <label class="field">Regional<select id="admin-region-filter"><option value="">Todas as regionais</option></select></label>
+          <label class="field">Código da loja<select id="admin-code-filter"><option value="">Todos os códigos</option></select></label>
           <div class="admin-source"><span>Base atual</span><strong id="admin-source-file">Nenhum arquivo importado</strong><small id="admin-source-date">—</small></div>
           <button class="button secondary" id="refresh-admin-button" type="button">Atualizar painel</button>
         </div>
@@ -333,7 +335,7 @@
         <div class="seller-card admin-table-card">
           <div class="seller-table-wrap">
             <table class="seller-table admin-table">
-              <thead><tr><th>Plataforma</th><th>Código</th><th>PDV</th><th>DDD</th><th>OUT-26</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
+              <thead><tr><th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th><th>OUT-26</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
               <tbody id="admin-table-body"></tbody>
             </table>
           </div>
@@ -362,6 +364,19 @@
           <div class="info-box"><span aria-hidden="true">i</span><p>A atualização substitui a base administrativa anterior. Os cadastros de vendedores não são alterados.</p></div>
           <div class="upload-actions"><span id="database-upload-status">Selecione o arquivo para começar.</span><button class="button primary" id="database-upload-button" type="button" disabled>Atualizar Administrativo</button></div>
         </section>
+        <section class="form-card store-management-card" aria-labelledby="store-management-title">
+          <div class="section-heading"><span class="section-icon" aria-hidden="true">＋</span><div><h2 id="store-management-title">Lojas e regionais</h2><p>Cadastre uma nova loja ou altere a regional de um código existente.</p></div></div>
+          <form id="store-region-form" class="store-region-form" autocomplete="off">
+            <label class="field">Código da loja<input name="code" maxlength="12" placeholder="Ex.: JFZ4" required></label>
+            <label class="field">Regional<select name="regional" required><option value="">Selecione</option><option>Regional 1</option><option>Regional 2</option><option>Regional 3</option></select></label>
+            <button class="button primary" type="submit">Salvar loja</button>
+          </form>
+          <div class="seller-card store-region-list-card">
+            <div class="access-list-heading"><div><h2>Lojas cadastradas</h2><p>Selecione uma linha para editar sua regional.</p></div><button class="button secondary" id="refresh-store-regions-button" type="button">Atualizar</button></div>
+            <div class="seller-table-wrap"><table class="seller-table"><thead><tr><th>Código</th><th>Regional</th><th>Atualização</th><th>Ação</th></tr></thead><tbody id="store-region-list"></tbody></table></div>
+            <div class="empty-state" id="store-region-empty"><strong>Nenhuma loja cadastrada</strong><span>Use o formulário acima para cadastrar a primeira loja.</span></div>
+          </div>
+        </section>
       </section>
     </div>
   </main>
@@ -386,6 +401,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-5"></script>
+  <script src="./app.js?v=20261013-6"></script>
 </body>
 </html>
