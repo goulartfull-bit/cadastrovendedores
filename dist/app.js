@@ -852,8 +852,10 @@ function renderProductScorecards(rows) {
       }
       changeText += ` vs ${comparisonMonths[0]}`;
     }
-    const targetAchievement = summary.meta ? formatPercent(summary.tendencia / summary.meta) : '—';
-    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div><div class="target-achievement"><dt>Ating. meta</dt><dd>${targetAchievement}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
+    const targetAchievementRatio = summary.meta ? summary.tendencia / summary.meta : null;
+    const targetAchievement = targetAchievementRatio === null ? '—' : formatPercent(targetAchievementRatio);
+    const targetAchievementClass = targetAchievementRatio === null ? 'neutral' : (targetAchievementRatio >= 1 ? 'positive' : 'negative');
+    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div><div class="target-achievement ${targetAchievementClass}"><dt>Ating. meta</dt><dd>${targetAchievement}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
     adminProductCards.appendChild(article);
   }
   adminProductEmpty.hidden = products.size > 0;
@@ -900,7 +902,9 @@ function renderAdministrative() {
     const currentLabel = String(data.current_month || monthLabels.at(-1) || '').trim();
     if (!history.size && currentLabel) history.set(currentLabel, data.realizado);
     const historyCells = monthLabels.map((label) => `<td>${history.has(label) ? formatNumber(history.get(label)) : '—'}</td>`).join('');
-    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td>${historyCells}<td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td>${formatPercent(data.atingimento)}</td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
+    const achievementValue = numericValue(data.atingimento);
+    const achievementReached = Math.abs(achievementValue) <= 3 ? achievementValue >= 1 : achievementValue >= 100;
+    tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td>${historyCells}<td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td><strong class="achievement-value ${achievementReached ? 'positive' : 'negative'}">${formatPercent(data.atingimento)}</strong></td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
     adminTableBody.appendChild(tr);
   }
   const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
