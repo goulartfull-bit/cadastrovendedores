@@ -779,6 +779,20 @@ function numericValue(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function removeWorkbookFilters(workbook) {
+  for (const sheetName of workbook.SheetNames || []) {
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) continue;
+    delete worksheet['!autofilter'];
+    if (Array.isArray(worksheet['!rows'])) {
+      worksheet['!rows'].forEach((row) => {
+        if (row && Object.hasOwn(row, 'hidden')) delete row.hidden;
+      });
+    }
+  }
+  return workbook;
+}
+
 function parseAdministrativeWorkbook(workbook, sourceFile) {
   const m5Sheet = workbook.Sheets.M5;
   const metaSheet = workbook.Sheets.MetaIW;
@@ -1088,14 +1102,14 @@ async function previewAdministrativeFile(file) {
   databaseFileName.textContent = file.name;
   try {
     if (!window.XLSX) throw new Error('Leitor de planilhas indisponível. Atualize a página e tente novamente.');
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const workbook = removeWorkbookFilters(XLSX.read(await file.arrayBuffer(), { type: 'array', cellStyles: true }));
     const rows = parseAdministrativeWorkbook(workbook, file.name);
     pendingAdministrativeImport = { fileName: file.name, rows };
     databaseManagerCount.textContent = String(new Set(rows.map((row) => row.manager)).size);
     databaseRowCount.textContent = String(rows.length);
     databaseThiagoCount.textContent = String(rows.filter((row) => row.manager === 'Thiago Goulart').length);
     databaseImportPreview.hidden = false;
-    databaseUploadStatus.textContent = 'Arquivo validado. Pronto para atualizar.';
+    databaseUploadStatus.textContent = 'Arquivo completo validado. Os filtros da planilha foram ignorados.';
     databaseUploadButton.disabled = false;
   } catch (error) {
     pendingAdministrativeImport = null;
