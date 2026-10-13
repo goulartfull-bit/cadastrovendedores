@@ -32,7 +32,7 @@
           <a class="nav-item nav-subitem" href="#vendedores" data-view-link="vendedores"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Vendedores</span></a>
           <a class="nav-item nav-subitem" href="#bd-vendedores" data-view-link="bd-vendedores"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span>BD de dados vendedor</span></a>
           <a class="nav-item nav-subitem" href="#acessos" data-view-link="acessos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span></a>
-          <a class="nav-item nav-subitem" href="#administrativo" data-view-link="administrativo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Administrativo</span></a>
+          <a class="nav-item nav-subitem" href="#administrativo" data-view-link="administrativo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Análise de Resultado</span></a>
           <a class="nav-item nav-subitem" href="#gestao-banco" data-view-link="gestao-banco"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M15 13h6M18 10v6"/></svg></span><span>Gestão Banco de dados</span></a>
         </div>
       </div>
@@ -311,7 +311,7 @@
 
       <section class="app-view" id="view-administrativo" data-view="administrativo" hidden>
         <header class="view-header seller-heading">
-          <div><p class="overline">ADMINISTRAÇÃO · RESULTADOS M5</p><h1>Administrativo</h1><p>Acompanhamento dos resultados da aba M5 por gestor.</p></div>
+          <div><p class="overline">ANÁLISE · RESULTADOS M5</p><h1>Análise de Resultado</h1><p>Acompanhamento dos resultados da aba M5 por gestor.</p></div>
           <div class="seller-count"><span>Registros</span><strong id="admin-row-count">0</strong></div>
         </header>
         <div class="admin-toolbar">
@@ -333,7 +333,7 @@
           <div class="product-score-grid" id="admin-product-cards"></div>
           <div class="empty-state compact" id="admin-product-empty" hidden><strong>Histórico ainda não disponível</strong><span>Atualize a base no menu Gestão Banco de dados.</span></div>
         </section>
-        <div class="metric-grid" aria-label="Indicadores administrativos">
+        <div class="metric-grid" aria-label="Indicadores da análise de resultado">
           <article class="metric-card"><span>PDVs</span><strong id="admin-pdv-count">0</strong><small>Códigos distintos</small></article>
           <article class="metric-card"><span id="admin-current-month-label">Realizado do mês</span><strong id="admin-realizado">0</strong><small>Soma da produção</small></article>
           <article class="metric-card"><span>Tendência</span><strong id="admin-tendencia">0</strong><small>Projeção do mês</small></article>
@@ -353,7 +353,7 @@
 
       <section class="app-view" id="view-gestao-banco" data-view="gestao-banco" hidden>
         <header class="view-header">
-          <div><p class="overline">ADMINISTRAÇÃO · ATUALIZAÇÃO DA BASE</p><h1>Gestão Banco de dados</h1><p>Importe uma nova planilha Master para atualizar o painel Administrativo.</p></div>
+          <div><p class="overline">ADMINISTRAÇÃO · ATUALIZAÇÃO DA BASE</p><h1>Gestão Banco de dados</h1><p>Importe uma nova planilha Master para atualizar o painel Análise de Resultado.</p></div>
         </header>
         <section class="form-card database-upload-card" aria-labelledby="database-upload-title">
           <div class="section-heading"><span class="section-icon" aria-hidden="true">↑</span><div><h2 id="database-upload-title">Atualizar base administrativa</h2><p>O sistema cruza a aba MetaIW com a aba M5 e atualiza todos os resultados.</p></div></div>
@@ -370,7 +370,7 @@
             <div><span>Thiago Goulart</span><strong id="database-thiago-count">0</strong></div>
           </div>
           <div class="info-box"><span aria-hidden="true">i</span><p>A atualização substitui a base administrativa anterior. Os cadastros de vendedores não são alterados.</p></div>
-          <div class="upload-actions"><span id="database-upload-status">Selecione o arquivo para começar.</span><button class="button primary" id="database-upload-button" type="button" disabled>Atualizar Administrativo</button></div>
+          <div class="upload-actions"><span id="database-upload-status">Selecione o arquivo para começar.</span><button class="button primary" id="database-upload-button" type="button" disabled>Atualizar análise</button></div>
         </section>
         <section class="form-card store-management-card" aria-labelledby="store-management-title">
           <div class="section-heading"><span class="section-icon" aria-hidden="true">＋</span><div><h2 id="store-management-title">Lojas e regionais</h2><p>Cadastre uma nova loja ou altere a regional de um código existente.</p></div></div>
@@ -395,7 +395,7 @@
       <span class="auth-mark" aria-hidden="true">G</span>
       <p class="overline">ÁREA RESTRITA</p>
       <h2 id="auth-title">Acesso administrativo</h2>
-      <p>Entre para acessar Revisão, Vendedores, Administrativo, Gestão Banco de dados e demais áreas restritas.</p>
+      <p>Entre para acessar Revisão, Vendedores, Análise de Resultado, Gestão Banco de dados e demais áreas restritas.</p>
       <form id="auth-form">
         <label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label>
         <label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label>
@@ -409,6 +409,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261013-19"></script>
+  <script src="./app.js?v=20261013-20"></script>
 </body>
 </html>

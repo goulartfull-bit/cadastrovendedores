@@ -1112,7 +1112,7 @@ async function uploadAdministrativeData() {
   try {
     const result = await apiRequest('/rest/v1/rpc/replace_administrativo_m5', { method: 'POST', body: JSON.stringify({ p_source_file: pendingAdministrativeImport.fileName, p_rows: pendingAdministrativeImport.rows }) }, true);
     databaseUploadStatus.textContent = `Base atualizada com ${result ?? pendingAdministrativeImport.rows.length} registros.`;
-    showToast('Painel Administrativo atualizado com sucesso.');
+    showToast('Painel Análise de Resultado atualizado com sucesso.');
     await loadAdministrative();
   } catch (error) {
     databaseUploadStatus.textContent = error.message || 'Não foi possível atualizar a base.';
@@ -1142,7 +1142,7 @@ async function saveStoreRegion(event) {
   }
 }
 
-const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso', administrativo: 'Administrativo', 'gestao-banco': 'Gestão Banco de dados' };
+const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso', administrativo: 'Análise de Resultado', 'gestao-banco': 'Gestão Banco de dados' };
 
 async function accessApi(method = 'GET', body = null) {
   const session = getSession();
