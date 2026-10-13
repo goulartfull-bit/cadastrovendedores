@@ -63,6 +63,7 @@ const adminProductEmpty = document.querySelector('#admin-product-empty');
 const adminSourceFile = document.querySelector('#admin-source-file');
 const adminSourceDate = document.querySelector('#admin-source-date');
 const refreshAdminButton = document.querySelector('#refresh-admin-button');
+const clearAdminFiltersButton = document.querySelector('#clear-admin-filters');
 const databaseFileInput = document.querySelector('#database-file-input');
 const databaseFileName = document.querySelector('#database-file-name');
 const databaseImportPreview = document.querySelector('#database-import-preview');
@@ -836,13 +837,21 @@ function formatPercent(value) {
 }
 
 function multiFilterValues(control) {
-  return new Set([...control.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value));
+  return new Set([...control.querySelectorAll('input[type="checkbox"]:checked:not([data-select-all])')].map((input) => input.value));
 }
 
 function updateMultiFilterLabel(control) {
-  const checked = [...control.querySelectorAll('input[type="checkbox"]:checked')];
+  const inputs = [...control.querySelectorAll('input[type="checkbox"]:not([data-select-all])')];
+  const checked = inputs.filter((input) => input.checked);
+  const selectAll = control.querySelector('[data-select-all]');
   const label = control.dataset.allLabel || 'Todos';
-  control.querySelector('button span').textContent = checked.length === 0 ? label : (checked.length === 1 ? checked[0].dataset.label : `${checked.length} selecionados`);
+  control.querySelector('button span').textContent = checked.length === 0 || checked.length === inputs.length
+    ? label
+    : (checked.length === 1 ? checked[0].dataset.label : `${checked.length} selecionados`);
+  if (selectAll) {
+    selectAll.checked = inputs.length > 0 && checked.length === inputs.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < inputs.length;
+  }
 }
 
 function populateMultiFilter(control, values, allLabel, defaultValue = '') {
@@ -850,7 +859,13 @@ function populateMultiFilter(control, values, allLabel, defaultValue = '') {
   if (!selected.size && defaultValue) selected.add(defaultValue);
   control.dataset.allLabel = allLabel;
   const options = control.querySelector('.filter-options');
-  options.replaceChildren(...values.map((value) => {
+  const selectAllLabel = document.createElement('label');
+  selectAllLabel.className = 'filter-select-all';
+  const selectAllInput = document.createElement('input');
+  selectAllInput.type = 'checkbox';
+  selectAllInput.dataset.selectAll = 'true';
+  selectAllLabel.append(selectAllInput, document.createTextNode('Selecionar todos'));
+  options.replaceChildren(selectAllLabel, ...values.map((value) => {
     const label = document.createElement('label');
     const input = document.createElement('input');
     input.type = 'checkbox';
@@ -860,6 +875,15 @@ function populateMultiFilter(control, values, allLabel, defaultValue = '') {
     label.append(input, document.createTextNode(value));
     return label;
   }));
+  updateMultiFilterLabel(control);
+}
+
+function applyMultiFilterChange(control, event) {
+  if (event.target.matches('[data-select-all]')) {
+    control.querySelectorAll('input[type="checkbox"]:not([data-select-all])').forEach((input) => {
+      input.checked = event.target.checked;
+    });
+  }
   updateMultiFilterLabel(control);
 }
 
@@ -1300,6 +1324,17 @@ accessForm.addEventListener('submit', async (event) => {
 
 refreshAccessButton.addEventListener('click', loadAccessUsers);
 refreshAdminButton.addEventListener('click', loadAdministrative);
+clearAdminFiltersButton.addEventListener('click', () => {
+  document.querySelectorAll('.filter-multiselect input[type="checkbox"]').forEach((input) => {
+    input.checked = false;
+    input.indeterminate = false;
+  });
+  document.querySelectorAll('.filter-multiselect').forEach(updateMultiFilterLabel);
+  updateAdministrativeFilters();
+  renderAdministrative();
+  closeMultiFilters();
+  showToast('Filtros removidos.');
+});
 document.querySelectorAll('.filter-multiselect').forEach((control) => {
   const button = control.querySelector('button');
   button.addEventListener('click', () => {
@@ -1312,10 +1347,10 @@ document.querySelectorAll('.filter-multiselect').forEach((control) => {
 document.addEventListener('click', (event) => {
   if (!event.target.closest('.filter-multiselect')) closeMultiFilters();
 });
-adminManagerFilter.addEventListener('change', () => { updateMultiFilterLabel(adminManagerFilter); updateAdministrativeFilters(); renderAdministrative(); });
-adminRegionFilter.addEventListener('change', () => { updateMultiFilterLabel(adminRegionFilter); updateAdministrativeFilters(); renderAdministrative(); });
-adminCodeFilter.addEventListener('change', () => { updateMultiFilterLabel(adminCodeFilter); updateAdministrativeFilters(); renderAdministrative(); });
-adminProductFilter.addEventListener('change', () => { updateMultiFilterLabel(adminProductFilter); renderAdministrative(); });
+adminManagerFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminManagerFilter, event); updateAdministrativeFilters(); renderAdministrative(); });
+adminRegionFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminRegionFilter, event); updateAdministrativeFilters(); renderAdministrative(); });
+adminCodeFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminCodeFilter, event); updateAdministrativeFilters(); renderAdministrative(); });
+adminProductFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminProductFilter, event); renderAdministrative(); });
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
   if (file) previewAdministrativeFile(file);
