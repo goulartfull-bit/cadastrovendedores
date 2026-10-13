@@ -819,17 +819,40 @@ function renderProductScorecards(rows) {
   for (const row of rows) {
     const data = row.data || row;
     const product = String(data.plataforma || 'Sem produto').trim();
-    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0 });
+    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [] });
     const summary = products.get(product);
     summary.realizado += numericValue(data.realizado);
     summary.meta += numericValue(data.meta);
     summary.tendencia += numericValue(data.tendencia);
+    for (const month of Array.isArray(data.history) ? data.history : []) {
+      const label = String(month.label || '').trim();
+      if (!label) continue;
+      if (!summary.history.has(label)) summary.monthOrder.push(label);
+      summary.history.set(label, (summary.history.get(label) || 0) + numericValue(month.value));
+    }
   }
   adminProductCards.replaceChildren();
   for (const summary of [...products.values()].sort((a, b) => b.realizado - a.realizado)) {
     const article = document.createElement('article');
     article.className = 'product-score-card';
-    article.innerHTML = `<header><div><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div>`;
+    const comparisonMonths = summary.monthOrder.slice(-2);
+    let changeClass = 'neutral';
+    let changeText = 'Histórico indisponível';
+    if (comparisonMonths.length === 2) {
+      const previous = summary.history.get(comparisonMonths[0]) || 0;
+      const current = summary.history.get(comparisonMonths[1]) || 0;
+      if (current > previous) {
+        changeClass = 'up';
+        changeText = previous ? `↑ Crescendo ${formatPercent((current - previous) / Math.abs(previous))}` : '↑ Crescendo · novo';
+      } else if (current < previous) {
+        changeClass = 'down';
+        changeText = previous ? `↓ Caindo ${formatPercent((current - previous) / Math.abs(previous))}` : '↓ Caindo';
+      } else {
+        changeText = '→ Estável 0%';
+      }
+      changeText += ` vs ${comparisonMonths[0]}`;
+    }
+    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
     adminProductCards.appendChild(article);
   }
   adminProductEmpty.hidden = products.size > 0;
@@ -899,17 +922,22 @@ function renderAdministrative() {
 
 function updateAdministrativeFilters() {
   const manager = adminManagerFilter.value || 'Thiago Goulart';
-  const managerCodes = [...new Set(administrativeRows.filter((row) => row.manager === manager).map((row) => row.codigo))].sort();
-  const currentCode = adminCodeFilter.value;
-  adminCodeFilter.replaceChildren(new Option('Todos os códigos', ''), ...managerCodes.map((code) => new Option(code, code)));
-  adminCodeFilter.value = managerCodes.includes(currentCode) ? currentCode : '';
   const currentRegion = adminRegionFilter.value;
   const regions = [...new Set(storeRegions.map((item) => item.regional))].sort();
   adminRegionFilter.replaceChildren(new Option('Todas as regionais', ''), ...regions.map((region) => new Option(region, region)));
   adminRegionFilter.value = regions.includes(currentRegion) ? currentRegion : '';
+  const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
+  const managerRows = administrativeRows.filter((row) => row.manager === manager);
+  const managerCodes = [...new Set(managerRows
+    .filter((row) => !adminRegionFilter.value || regionByCode.get(row.codigo) === adminRegionFilter.value)
+    .map((row) => row.codigo))].sort();
+  const currentCode = adminCodeFilter.value;
+  adminCodeFilter.replaceChildren(new Option('Todos os códigos', ''), ...managerCodes.map((code) => new Option(code, code)));
+  adminCodeFilter.value = managerCodes.includes(currentCode) ? currentCode : '';
   const currentProduct = adminProductFilter.value;
-  const products = [...new Set(administrativeRows
-    .filter((row) => row.manager === manager)
+  const products = [...new Set(managerRows
+    .filter((row) => !adminRegionFilter.value || regionByCode.get(row.codigo) === adminRegionFilter.value)
+    .filter((row) => !adminCodeFilter.value || row.codigo === adminCodeFilter.value)
     .map((row) => String((row.data || row).plataforma || '').trim())
     .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   adminProductFilter.replaceChildren(new Option('Todos os produtos', ''), ...products.map((product) => new Option(product, product)));
@@ -1200,8 +1228,8 @@ accessForm.addEventListener('submit', async (event) => {
 refreshAccessButton.addEventListener('click', loadAccessUsers);
 refreshAdminButton.addEventListener('click', loadAdministrative);
 adminManagerFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
-adminRegionFilter.addEventListener('change', renderAdministrative);
-adminCodeFilter.addEventListener('change', renderAdministrative);
+adminRegionFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
+adminCodeFilter.addEventListener('change', () => { updateAdministrativeFilters(); renderAdministrative(); });
 adminProductFilter.addEventListener('change', renderAdministrative);
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
