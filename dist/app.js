@@ -99,7 +99,7 @@ function setGnMenuOpen(open, persist = true) {
   if (persist) localStorage.setItem('gestao-gn-menu-open', String(open));
 }
 
-setGnMenuOpen(localStorage.getItem('gestao-gn-menu-open') === 'true', false);
+setGnMenuOpen(Boolean(getSession()) && localStorage.getItem('gestao-gn-menu-open') === 'true', false);
 
 function showToast(message) {
   toast.textContent = message;
@@ -739,6 +739,11 @@ menuButton.addEventListener('click', () => {
   menuButton.setAttribute('aria-expanded', String(!collapsed));
 });
 gnMenuToggle.addEventListener('click', () => {
+  if (!getSession()) {
+    setGnMenuOpen(false);
+    openAuth('gn-menu');
+    return;
+  }
   if (window.innerWidth > 820 && sidebar.classList.contains('collapsed')) {
     sidebar.classList.remove('collapsed');
     localStorage.setItem('gestao-sidebar-collapsed', 'false');
@@ -1304,6 +1309,16 @@ authForm.addEventListener('submit', async (event) => {
     updateAuthUi();
     const destination = pendingProtectedView || 'vendedores';
     pendingProtectedView = null;
+    if (destination === 'gn-menu') {
+      if (window.innerWidth > 820 && sidebar.classList.contains('collapsed')) {
+        sidebar.classList.remove('collapsed');
+        localStorage.setItem('gestao-sidebar-collapsed', 'false');
+        menuButton.setAttribute('aria-expanded', 'true');
+      }
+      setGnMenuOpen(true);
+      showToast('Acesso autorizado. Menu Gestão GN liberado.');
+      return;
+    }
     await showView(destination);
     showToast('Acesso autorizado.');
   } catch {
@@ -1380,6 +1395,7 @@ logoutButton.addEventListener('click', () => {
   selectedSellerId = null;
   selectedSellerIds.clear();
   selectedArchivedIds.clear();
+  setGnMenuOpen(false);
   updateAuthUi();
   showView('cadastro');
   showToast('Acesso encerrado.');
