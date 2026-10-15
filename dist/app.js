@@ -821,16 +821,21 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
   const metaCodeFound = columnIndex(th, 'CODIGO AGENTE');
   const metaManagerFound = columnIndex(th, 'GN');
+  const metaRvvInMeta = columnIndex(th, 'META RVV');
+  const metaRvvInM5 = columnIndex(mh, 'META RVV');
+  if (metaRvvInMeta < 0 && metaRvvInM5 < 0) throw new Error('A planilha precisa conter a coluna Meta RVV na aba MetaIW ou M5.');
   const metaCode = metaCodeFound < 0 ? 4 : metaCodeFound;
   const metaManager = metaManagerFound < 0 ? 3 : metaManagerFound;
   const managersByCode = new Map();
   for (const row of metaRows.slice(metaHeaderRow + 1)) {
+    if (metaRvvInMeta >= 0 && normalizeHeader(row[metaRvvInMeta]) !== 'SIM') continue;
     const code = String(row[metaCode] ?? '').trim().toUpperCase();
     const manager = managerDisplayName(row[metaManager]);
     if (code && manager !== 'Não identificado') managersByCode.set(code, manager);
   }
   const rows = [];
   for (const row of m5Rows.slice(m5HeaderRow + 1)) {
+    if (metaRvvInM5 >= 0 && normalizeHeader(row[metaRvvInM5]) !== 'SIM') continue;
     const codigo = String(row[m5.codigo] ?? '').trim().toUpperCase();
     const manager = managersByCode.get(codigo);
     if (!codigo || !manager || !row[m5.plataforma]) continue;
@@ -1114,7 +1119,7 @@ async function previewAdministrativeFile(file) {
     databaseRowCount.textContent = String(rows.length);
     databaseThiagoCount.textContent = String(rows.filter((row) => row.manager === 'Thiago Goulart').length);
     databaseImportPreview.hidden = false;
-    databaseUploadStatus.textContent = 'Arquivo completo validado. Os filtros da planilha foram ignorados.';
+    databaseUploadStatus.textContent = 'Arquivo validado. Considerados somente registros com Meta RVV = SIM.';
     databaseUploadButton.disabled = false;
   } catch (error) {
     pendingAdministrativeImport = null;
