@@ -761,7 +761,15 @@ sidebar.addEventListener('click', (event) => {
 });
 
 function normalizeHeader(value) {
-  return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleUpperCase('pt-BR').replace(/\s+/g, ' ');
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleUpperCase('pt-BR')
+    .replace(/[_./\\-]+/g, ' ')
+    .replace(/[^A-Z0-9%]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function managerDisplayName(value) {
@@ -771,11 +779,36 @@ function managerDisplayName(value) {
 }
 
 function findHeaderRow(rows, requiredHeader) {
-  return rows.findIndex((row) => Array.isArray(row) && row.some((cell) => normalizeHeader(cell) === requiredHeader));
+  const normalizedRequiredHeader = normalizeHeader(requiredHeader);
+  return rows.findIndex((row) => Array.isArray(row) && row.some((cell) => normalizeHeader(cell) === normalizedRequiredHeader));
 }
 
 function columnIndex(header, label) {
-  return header.findIndex((cell) => normalizeHeader(cell) === label);
+  const normalizedLabel = normalizeHeader(label);
+  return header.findIndex((cell) => normalizeHeader(cell) === normalizedLabel);
+}
+
+function columnIndexAcrossRows(rows, label, preferredRow = -1) {
+  const normalizedLabel = normalizeHeader(label);
+  const matches = (cell) => {
+    const normalizedCell = normalizeHeader(cell);
+    if (normalizedCell === normalizedLabel) return true;
+    if (normalizedLabel === 'META RVV') {
+      const words = normalizedCell.split(' ');
+      return words.includes('META') && words.includes('RVV');
+    }
+    return false;
+  };
+  if (preferredRow >= 0 && Array.isArray(rows[preferredRow])) {
+    const preferredColumn = rows[preferredRow].findIndex(matches);
+    if (preferredColumn >= 0) return preferredColumn;
+  }
+  for (const row of rows.slice(0, 80)) {
+    if (!Array.isArray(row)) continue;
+    const index = row.findIndex(matches);
+    if (index >= 0) return index;
+  }
+  return -1;
 }
 
 function numericValue(value) {
@@ -821,8 +854,8 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
   const metaCodeFound = columnIndex(th, 'CODIGO AGENTE');
   const metaManagerFound = columnIndex(th, 'GN');
-  const metaRvvInMeta = columnIndex(th, 'META RVV');
-  const metaRvvInM5 = columnIndex(mh, 'META RVV');
+  const metaRvvInMeta = columnIndexAcrossRows(metaRows, 'META RVV', metaHeaderRow);
+  const metaRvvInM5 = columnIndexAcrossRows(m5Rows, 'META RVV', m5HeaderRow);
   if (metaRvvInMeta < 0 && metaRvvInM5 < 0) throw new Error('A planilha precisa conter a coluna Meta RVV na aba MetaIW ou M5.');
   const metaCode = metaCodeFound < 0 ? 4 : metaCodeFound;
   const metaManager = metaManagerFound < 0 ? 3 : metaManagerFound;
