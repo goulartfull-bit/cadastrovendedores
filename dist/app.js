@@ -795,7 +795,9 @@ function columnIndexAcrossRows(rows, label, preferredRow = -1) {
     if (normalizedCell === normalizedLabel) return true;
     if (normalizedLabel === 'META RVV') {
       const words = normalizedCell.split(' ');
-      return words.includes('META') && words.includes('RVV');
+      const isMetaRvv = words.includes('META') && words.includes('RVV');
+      const isMercadoDesenvolvimento = words.includes('MERCADO') && words.some((word) => word.startsWith('DESENV'));
+      return isMetaRvv || isMercadoDesenvolvimento;
     }
     return false;
   };
@@ -856,7 +858,7 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   const metaManagerFound = columnIndex(th, 'GN');
   const metaRvvInMeta = columnIndexAcrossRows(metaRows, 'META RVV', metaHeaderRow);
   const metaRvvInM5 = columnIndexAcrossRows(m5Rows, 'META RVV', m5HeaderRow);
-  if (metaRvvInMeta < 0 && metaRvvInM5 < 0) throw new Error('A planilha precisa conter a coluna Meta RVV na aba MetaIW ou M5.');
+  if (metaRvvInMeta < 0 && metaRvvInM5 < 0) throw new Error('A planilha precisa conter a coluna Meta RVV (ou Mercado Desenv.) na aba MetaIW ou M5.');
   const metaCode = metaCodeFound < 0 ? 4 : metaCodeFound;
   const metaManager = metaManagerFound < 0 ? 3 : metaManagerFound;
   const managersByCode = new Map();
