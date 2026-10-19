@@ -878,12 +878,14 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   const rows = [];
   for (const row of m5Rows.slice(m5HeaderRow + 1)) {
     if (metaRvvInM5 >= 0 && normalizeHeader(row[metaRvvInM5]) !== 'SIM') continue;
+    const metaValue = numericValue(row[m5.meta]);
+    if (metaValue < 1) continue;
     const codigo = String(row[m5.codigo] ?? '').trim().toUpperCase();
     const manager = managersByCode.get(codigo);
     if (!codigo || !manager || !row[m5.plataforma]) continue;
     rows.push({
       manager, codigo, plataforma: String(row[m5.plataforma] ?? ''), pdv: String(row[m5.pdv] ?? ''), ddd: String(row[m5.ddd] ?? ''),
-      realizado: numericValue(row[m5.realizado]), tendencia: numericValue(row[m5.tendencia]), meta: numericValue(row[m5.meta]), gap: numericValue(row[m5.gap]),
+      realizado: numericValue(row[m5.realizado]), tendencia: numericValue(row[m5.tendencia]), meta: metaValue, gap: numericValue(row[m5.gap]),
       atingimento: numericValue(row[m5.atingimento]), ytd25: numericValue(row[m5.ytd25]), ytd26: numericValue(row[m5.ytd26]), ytd: numericValue(row[m5.ytd]), source_file: sourceFile,
       current_month: currentMonthLabel,
       history: recentMonthColumns.map((month) => ({ label: month.label, value: numericValue(row[month.index]) }))
@@ -1134,7 +1136,7 @@ async function loadAdministrative() {
     administrativeRows = [];
     for (let offset = 0; ; offset += 1000) {
       const page = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', { headers: { Range: `${offset}-${offset + 999}` } }, true) || [];
-      administrativeRows.push(...page);
+      administrativeRows.push(...page.filter((row) => numericValue((row.data || row).meta) >= 1));
       if (page.length < 1000) break;
     }
     const managers = [...new Set(administrativeRows.map((row) => row.manager))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -1161,7 +1163,7 @@ async function previewAdministrativeFile(file) {
     databaseRowCount.textContent = String(rows.length);
     databaseThiagoCount.textContent = String(rows.filter((row) => row.manager === 'Thiago Goulart').length);
     databaseImportPreview.hidden = false;
-    databaseUploadStatus.textContent = 'Arquivo validado. Considerados somente registros com Meta RVV = SIM.';
+    databaseUploadStatus.textContent = 'Arquivo validado. Considerados somente registros com Meta RVV = SIM e META maior ou igual a 1.';
     databaseUploadButton.disabled = false;
   } catch (error) {
     pendingAdministrativeImport = null;
