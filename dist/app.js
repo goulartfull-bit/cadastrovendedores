@@ -813,6 +813,11 @@ function columnIndexAcrossRows(rows, label, preferredRow = -1) {
   return -1;
 }
 
+function normalizeMonthHeader(value) {
+  const match = normalizeHeader(value).match(/^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s+(\d{2})$/);
+  return match ? `${match[1]}-${match[2]}` : '';
+}
+
 function numericValue(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const parsed = Number(String(value ?? '').replace(/\./g, '').replace(',', '.'));
@@ -849,7 +854,9 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
     realizado: columnIndex(mh, 'OUT-26'), tendencia: columnIndex(mh, 'TEND'), meta: columnIndex(mh, 'META'), gap: columnIndex(mh, 'GAP'),
     atingimento: columnIndex(mh, '%ATING'), ytd25: columnIndex(mh, 'YTD25'), ytd26: columnIndex(mh, 'YTD26.'), ytd: columnIndex(mh, '%YTD')
   };
-  const monthColumns = mh.map((cell, index) => ({ label: normalizeHeader(cell), index })).filter((item) => /^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)-\d{2}$/.test(item.label));
+  const monthColumns = mh
+    .map((cell, index) => ({ label: normalizeMonthHeader(cell), index }))
+    .filter((item) => item.label);
   const recentMonthColumns = monthColumns.filter((month) => month.index <= m5.realizado).slice(-3);
   const currentMonthLabel = recentMonthColumns.at(-1)?.label || 'Mês atual';
   const fallbackM5 = { plataforma: 1, codigo: 2, pdv: 3, ddd: 4, realizado: 10, tendencia: 11, meta: 12, gap: 13, atingimento: 14, ytd25: 28, ytd26: 29, ytd: 30 };
