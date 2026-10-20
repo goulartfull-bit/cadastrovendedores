@@ -35,6 +35,12 @@ const accessList = document.querySelector('#access-list');
 const accessEmpty = document.querySelector('#access-empty');
 const accessCount = document.querySelector('#access-count');
 const refreshAccessButton = document.querySelector('#refresh-access-button');
+const accessManagerField = document.querySelector('#access-manager-field');
+const accessStoresField = document.querySelector('#access-stores-field');
+const accessStoreSearch = document.querySelector('#access-store-search');
+const accessStoreList = document.querySelector('#access-store-list');
+const accessSelectedCount = document.querySelector('#access-selected-count');
+const accessCancelEdit = document.querySelector('#access-cancel-edit');
 const archivedList = document.querySelector('#archived-list');
 const archivedEmpty = document.querySelector('#archived-empty');
 const archivedCount = document.querySelector('#archived-count');
@@ -57,13 +63,46 @@ const adminPdvCount = document.querySelector('#admin-pdv-count');
 const adminRealizado = document.querySelector('#admin-realizado');
 const adminTendencia = document.querySelector('#admin-tendencia');
 const adminAtingimento = document.querySelector('#admin-atingimento');
+const adminMeta = document.querySelector('#admin-meta');
 const adminCurrentMonthLabel = document.querySelector('#admin-current-month-label');
+const adminViewSubtitle = document.querySelector('#admin-view-subtitle');
+const gnRealizado = document.querySelector('#gn-realizado');
+const gnTendencia = document.querySelector('#gn-tendencia');
+const gnMeta = document.querySelector('#gn-meta');
+const gnAtingimento = document.querySelector('#gn-atingimento');
+const gnResultsBody = document.querySelector('#gn-results-body');
+const gnResultsTotal = document.querySelector('#gn-results-total');
+const gnResultsEmpty = document.querySelector('#gn-results-empty');
 const adminProductCards = document.querySelector('#admin-product-cards');
 const adminProductEmpty = document.querySelector('#admin-product-empty');
 const adminSourceFile = document.querySelector('#admin-source-file');
 const adminSourceDate = document.querySelector('#admin-source-date');
 const refreshAdminButton = document.querySelector('#refresh-admin-button');
 const clearAdminFiltersButton = document.querySelector('#clear-admin-filters');
+const comparisonCards = document.querySelector('#comparison-cards');
+const comparisonBars = document.querySelector('#comparison-bars');
+const comparisonTableBody = document.querySelector('#comparison-table-body');
+const comparisonEmpty = document.querySelector('#comparison-empty');
+const comparisonProductFilter = document.querySelector('#comparison-product-filter');
+const clearComparisonFiltersButton = document.querySelector('#clear-comparison-filters');
+const comparisonRegionCount = document.querySelector('#comparison-region-count');
+const comparisonInsightText = document.querySelector('#comparison-insight-text');
+const comparisonSort = document.querySelector('#comparison-sort');
+const comparisonDetail = document.querySelector('#comparison-detail');
+const comparisonDetailTitle = document.querySelector('#comparison-detail-title');
+const comparisonDetailBody = document.querySelector('#comparison-detail-body');
+const clearComparisonRegionButton = document.querySelector('#clear-comparison-region');
+const storeComparisonProductFilter = document.querySelector('#store-comparison-product-filter');
+const storeComparisonRegionFilter = document.querySelector('#store-comparison-region-filter');
+const clearStoreComparisonFiltersButton = document.querySelector('#clear-store-comparison-filters');
+const storeComparisonCount = document.querySelector('#store-comparison-count');
+const storeComparisonBars = document.querySelector('#store-comparison-bars');
+const storeComparisonTableBody = document.querySelector('#store-comparison-table-body');
+const storeComparisonEmpty = document.querySelector('#store-comparison-empty');
+const storeSummaryTotal = document.querySelector('#store-summary-total');
+const storeSummaryLeader = document.querySelector('#store-summary-leader');
+const storeSummaryLeaderValue = document.querySelector('#store-summary-leader-value');
+const storeSummaryAchievement = document.querySelector('#store-summary-achievement');
 const databaseFileInput = document.querySelector('#database-file-input');
 const databaseFileName = document.querySelector('#database-file-name');
 const databaseImportPreview = document.querySelector('#database-import-preview');
@@ -86,9 +125,22 @@ const selectedSellerIds = new Set();
 const selectedArchivedIds = new Set();
 let pendingProtectedView = null;
 let accessUsers = [];
+let accessManagers = [];
+let accessStores = [];
+let editingAccessUser = null;
+let currentAccessProfile = null;
+const accessSelectedStoreCodes = new Set();
 let administrativeRows = [];
 let pendingAdministrativeImport = null;
 let storeRegions = [];
+let storeComparisonSort = { key: 'atingimento', direction: -1 };
+let selectedComparisonRegion = '';
+const defaultStoreRegions = [
+  ['360O', 'Regional 1'], ['Q1LW', 'Regional 1'], ['AHF9', 'Regional 1'], ['X0JU', 'Regional 2'],
+  ['3EAZ', 'Regional 3'], ['JFZ4', 'Regional 1'], ['TMHN', 'Regional 3'], ['B2UT', 'Regional 1'],
+  ['EK0V', 'Regional 3'], ['DE3E', 'Regional 2'], ['1OAE', 'Regional 2'], ['XMI3', 'Regional 2'],
+  ['QNRC', 'Regional 3']
+];
 sidebar.classList.remove('open');
 if (window.innerWidth > 820 && localStorage.getItem('gestao-sidebar-collapsed') === 'true') sidebar.classList.add('collapsed');
 menuButton.setAttribute('aria-expanded', String(!sidebar.classList.contains('collapsed')));
@@ -181,6 +233,47 @@ async function apiRequest(path, options = {}, requireAuth = false) {
   }
   if (response.status === 204) return null;
   return response.json().catch(() => null);
+}
+
+async function loadCurrentAccessProfile() {
+  if (!getSession()) { currentAccessProfile = null; applyAccessNavigation(); return null; }
+  try {
+    currentAccessProfile = await apiRequest('/rest/v1/rpc/get_my_access_profile', { method: 'POST', body: '{}' }, true);
+  } catch (profileError) {
+    try {
+      // Compatibilidade durante a janela entre o deploy do frontend e a migração.
+      // A função legada consulta admin_users no servidor e retorna apenas um booleano.
+      const sessionEmail = String(getSession()?.user?.email || '').trim().toLowerCase();
+      const legacyAdmin = await apiRequest('/rest/v1/rpc/is_admin', { method: 'POST', body: '{}' }, true);
+      if (!sessionEmail || legacyAdmin !== true) throw new Error('A conta não possui acesso administrativo ativo.');
+      currentAccessProfile = {
+        email: sessionEmail, active: true, access_role: 'ADMINISTRADOR', legacy: true,
+        manager: null, store_codes: [],
+        permissions: { acoes: true, vendedores: true, 'bd-vendedores': true, administrativo: true, 'gestao-banco': true, acessos: true }
+      };
+    } catch {
+      currentAccessProfile = null;
+      sessionStorage.removeItem(authStorageKey);
+      updateAuthUi();
+      throw new Error('A conta foi autenticada, mas não possui um perfil administrativo ativo.');
+    }
+  }
+  applyAccessNavigation();
+  return currentAccessProfile;
+}
+
+function hasViewPermission(viewName) {
+  if (viewName === 'cadastro') return true;
+  if (viewName === 'comparativo' || viewName === 'comparativo-loja') return currentAccessProfile?.permissions?.administrativo === true;
+  return currentAccessProfile?.permissions?.[viewName] === true;
+}
+
+function applyAccessNavigation() {
+  document.querySelectorAll('#gn-submenu [data-view-link]').forEach((link) => {
+    link.hidden = !hasViewPermission(link.dataset.viewLink);
+  });
+  const anyAllowed = [...document.querySelectorAll('#gn-submenu [data-view-link]')].some((link) => !link.hidden);
+  gnMenuToggle.hidden = Boolean(getSession()) && !anyAllowed;
 }
 
 async function saveCadastro({ addAnother = false } = {}) {
@@ -839,8 +932,10 @@ function removeWorkbookFilters(workbook) {
 }
 
 function parseAdministrativeWorkbook(workbook, sourceFile) {
-  const m5Sheet = workbook.Sheets.M5;
-  const metaSheet = workbook.Sheets.MetaIW;
+  const m5SheetName = (workbook.SheetNames || []).find((name) => normalizeHeader(name) === 'M5');
+  const metaSheetName = (workbook.SheetNames || []).find((name) => normalizeHeader(name) === 'METAIW');
+  const m5Sheet = m5SheetName ? workbook.Sheets[m5SheetName] : null;
+  const metaSheet = metaSheetName ? workbook.Sheets[metaSheetName] : null;
   if (!m5Sheet || !metaSheet) throw new Error('A planilha precisa conter as abas M5 e MetaIW.');
   const options = { header: 1, defval: null, raw: true };
   const m5Rows = XLSX.utils.sheet_to_json(m5Sheet, options);
@@ -857,39 +952,42 @@ function parseAdministrativeWorkbook(workbook, sourceFile) {
   const monthColumns = mh
     .map((cell, index) => ({ label: normalizeMonthHeader(cell), index }))
     .filter((item) => item.label);
-  const recentMonthColumns = monthColumns.filter((month) => month.index <= m5.realizado).slice(-3);
-  const currentMonthLabel = recentMonthColumns.at(-1)?.label || 'Mês atual';
+  const reportingMonthLabels = new Set(['MAI-26', 'JUN-26', 'JUL-26', 'AGO-26', 'SET-26', 'OUT-26']);
+  const reportingMonthColumns = monthColumns.filter((month) => reportingMonthLabels.has(month.label) && month.index <= m5.realizado);
+  const currentMonthLabel = reportingMonthColumns.at(-1)?.label || 'Mês atual';
   const fallbackM5 = { plataforma: 1, codigo: 2, pdv: 3, ddd: 4, realizado: 10, tendencia: 11, meta: 12, gap: 13, atingimento: 14, ytd25: 28, ytd26: 29, ytd: 30 };
   for (const key of Object.keys(m5)) if (m5[key] < 0) m5[key] = fallbackM5[key];
   const metaCodeFound = columnIndex(th, 'CODIGO AGENTE');
   const metaManagerFound = columnIndex(th, 'GN');
-  const metaRvvInMeta = columnIndexAcrossRows(metaRows, 'META RVV', metaHeaderRow);
-  const metaRvvInM5 = columnIndexAcrossRows(m5Rows, 'META RVV', m5HeaderRow);
-  if (metaRvvInMeta < 0 && metaRvvInM5 < 0) throw new Error('A planilha precisa conter a coluna Meta RVV (ou Mercado Desenv.) na aba MetaIW ou M5.');
   const metaCode = metaCodeFound < 0 ? 4 : metaCodeFound;
   const metaManager = metaManagerFound < 0 ? 3 : metaManagerFound;
   const managersByCode = new Map();
   for (const row of metaRows.slice(metaHeaderRow + 1)) {
-    if (metaRvvInMeta >= 0 && normalizeHeader(row[metaRvvInMeta]) !== 'SIM') continue;
     const code = String(row[metaCode] ?? '').trim().toUpperCase();
     const manager = managerDisplayName(row[metaManager]);
     if (code && manager !== 'Não identificado') managersByCode.set(code, manager);
   }
   const rows = [];
   for (const row of m5Rows.slice(m5HeaderRow + 1)) {
-    if (metaRvvInM5 >= 0 && normalizeHeader(row[metaRvvInM5]) !== 'SIM') continue;
     const metaValue = numericValue(row[m5.meta]);
-    if (metaValue < 1) continue;
     const codigo = String(row[m5.codigo] ?? '').trim().toUpperCase();
     const manager = managersByCode.get(codigo);
-    if (!codigo || !manager || !row[m5.plataforma]) continue;
+    const platform = canonicalGnProduct(row[m5.plataforma]);
+    if (!codigo || !manager || !platform || (metaValue < 1 && platform !== 'MPLAY(TOTAL)')) continue;
     rows.push({
-      manager, codigo, plataforma: String(row[m5.plataforma] ?? ''), pdv: String(row[m5.pdv] ?? ''), ddd: String(row[m5.ddd] ?? ''),
+      manager, codigo, plataforma: platform, pdv: String(row[m5.pdv] ?? ''), ddd: String(row[m5.ddd] ?? ''),
       realizado: numericValue(row[m5.realizado]), tendencia: numericValue(row[m5.tendencia]), meta: metaValue, gap: numericValue(row[m5.gap]),
       atingimento: numericValue(row[m5.atingimento]), ytd25: numericValue(row[m5.ytd25]), ytd26: numericValue(row[m5.ytd26]), ytd: numericValue(row[m5.ytd]), source_file: sourceFile,
       current_month: currentMonthLabel,
-      history: recentMonthColumns.map((month) => ({ label: month.label, value: numericValue(row[month.index]) }))
+      history: reportingMonthColumns.map((month) => ({ label: month.label, value: numericValue(row[month.index]) }))
     });
+  }
+  const thiagoProductCoverage = new Set(rows
+    .filter((row) => isThiagoGManager(row.manager))
+    .map((row) => canonicalGnProduct(row.plataforma))
+    .filter(Boolean));
+  if (thiagoProductCoverage.size < 8) {
+    throw new Error('A aba M5 está recolhida ou filtrada e contém somente parte dos produtos. Expanda todos os itens da tabela dinâmica antes de importar.');
   }
   if (!rows.length) throw new Error('Nenhum registro da M5 corresponde aos códigos da MetaIW.');
   return rows;
@@ -963,13 +1061,18 @@ function closeMultiFilters(except = null) {
   });
 }
 
-function renderProductScorecards(rows) {
+function renderProductScorecards(rows, visibleProducts = gnProductOrder) {
   const products = new Map();
+  for (const product of visibleProducts) {
+    products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [], rowCount: 0 });
+  }
   for (const row of rows) {
     const data = row.data || row;
-    const product = String(data.plataforma || 'Sem produto').trim();
-    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [] });
+    const product = canonicalGnProduct(data.plataforma) || String(data.plataforma || 'Sem produto').trim();
+    if (visibleProducts.length && !visibleProducts.includes(product)) continue;
+    if (!products.has(product)) products.set(product, { product, realizado: 0, meta: 0, tendencia: 0, history: new Map(), monthOrder: [], rowCount: 0 });
     const summary = products.get(product);
+    summary.rowCount += 1;
     summary.realizado += numericValue(data.realizado);
     summary.meta += numericValue(data.meta);
     summary.tendencia += numericValue(data.tendencia);
@@ -987,7 +1090,9 @@ function renderProductScorecards(rows) {
     const comparisonMonths = summary.monthOrder.slice(-2);
     let changeClass = 'neutral';
     let changeText = 'Histórico indisponível';
-    if (comparisonMonths.length === 2) {
+    if (!summary.rowCount) {
+      changeText = 'Sem dados por loja';
+    } else if (comparisonMonths.length === 2) {
       const previous = summary.history.get(comparisonMonths[0]) || 0;
       const projected = summary.tendencia;
       if (projected > previous) {
@@ -999,12 +1104,19 @@ function renderProductScorecards(rows) {
       } else {
         changeText = '→ Estável 0%';
       }
-      changeText += ` vs ${comparisonMonths[0]}`;
+      changeText += ' vs mês passado';
     }
-    const targetAchievementRatio = summary.meta ? summary.tendencia / summary.meta : null;
-    const targetAchievement = targetAchievementRatio === null ? '—' : formatPercent(targetAchievementRatio);
-    const targetAchievementClass = targetAchievementRatio === null ? 'neutral' : (targetAchievementRatio >= 1 ? 'positive' : 'negative');
-    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3>${escapeHtml(summary.product)}</h3></div><dl><div><dt>Meta</dt><dd>${formatNumber(summary.meta)}</dd></div><div><dt>Tendência</dt><dd>${formatNumber(summary.tendencia)}</dd></div><div class="target-achievement ${targetAchievementClass}"><dt>Ating. meta</dt><dd>${targetAchievement}</dd></div></dl></header><div class="score-bottom"><div class="score-realized"><span>Realizado</span><strong>${formatNumber(summary.realizado)}</strong></div><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
+    const realizedText = summary.rowCount ? formatNumber(summary.realizado) : '—';
+    const metaText = summary.rowCount ? formatNumber(summary.meta) : '—';
+    const tendencyText = summary.rowCount ? formatNumber(summary.tendencia) : '—';
+    const gap = summary.tendencia - summary.meta;
+    const gapText = summary.rowCount && summary.meta >= 1 ? formatNumber(gap) : '—';
+    const gapClass = gap > 0 ? 'positive' : gap < 0 ? 'negative' : '';
+    const achievement = summary.meta >= 1 ? summary.tendencia / summary.meta : null;
+    const achievementText = achievement === null ? '—' : formatPercent(achievement);
+    const achievementClass = achievement === null ? 'neutral' : achievement >= 1 ? 'positive' : 'negative';
+    article.classList.toggle('no-data', !summary.rowCount);
+    article.innerHTML = `<header><div class="product-name"><span>PRODUTO</span><h3 title="${escapeHtml(summary.product)}">${escapeHtml(summary.product)}</h3></div><div class="card-achievement ${achievementClass}"><span>ATING.</span><strong>${achievementText}</strong></div></header><dl class="product-metrics"><div><dt>Real</dt><dd>${realizedText}</dd></div><div><dt>Meta</dt><dd>${metaText}</dd></div><div><dt>Tend</dt><dd>${tendencyText}</dd></div><div><dt>GAP</dt><dd class="${gapClass}">${gapText}</dd></div></dl><div class="score-bottom"><span class="score-change ${changeClass}">${escapeHtml(changeText)}</span></div>`;
     adminProductCards.appendChild(article);
   }
   adminProductEmpty.hidden = products.size > 0;
@@ -1027,7 +1139,99 @@ function recentMonthLabels(rows) {
   });
 }
 
+const gnReportingMonths = ['MAI-26', 'JUN-26', 'JUL-26', 'AGO-26', 'SET-26', 'OUT-26'];
+const gnProductLabels = new Map([
+  ['CONTA', 'CONTA'],
+  ['MIG PRE CONTA', 'MIG_PRÉ/CONTA'],
+  ['CONTROLE FACIL', 'CONTROLE+FÁCIL'],
+  ['MIG PRE CONTROLE FACIL', 'MIG_PRÉ/CONTROLE+FÁCIL'],
+  ['BL MOVEL', 'BL_MÓVEL'],
+  ['BL FIXA INSTALADA', 'BL_FIXA_Instalada'],
+  ['TV INSTALADA', 'TV_Instalada'],
+  ['BL FIXA INSTALADA PME', 'BL_FIXA_Instalada_PME'],
+  ['PLUGIN MULTI', 'PLUGIN_MULTI'],
+  ['MPLAY TOTAL', 'MPLAY(TOTAL)']
+]);
+const gnProductOrder = [...gnProductLabels.values()];
+
+function canonicalGnProduct(value) {
+  return gnProductLabels.get(normalizeHeader(value)) || '';
+}
+
+function isValidGnProductRow(row) {
+  const data = row.data || row;
+  const product = canonicalGnProduct(data.plataforma);
+  return Boolean(product) && (numericValue(data.meta) >= 1 || product === 'MPLAY(TOTAL)');
+}
+
+function isThiagoGManager(value) {
+  const manager = normalizeHeader(value);
+  return manager === 'THIAGO G' || manager === 'THIAGO GOULART';
+}
+
+function renderGnResults() {
+  const allowedManagers = multiFilterValues(adminManagerFilter);
+  const allowedRegions = multiFilterValues(adminRegionFilter);
+  const allowedCodes = multiFilterValues(adminCodeFilter);
+  const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
+  const validRows = administrativeRows.filter((row) => {
+    const code = row.codigo || row.data?.codigo;
+    return isValidGnProductRow(row)
+      && (!allowedManagers.size || allowedManagers.has(row.manager))
+      && (!allowedRegions.size || allowedRegions.has(regionByCode.get(code)))
+      && (!allowedCodes.size || allowedCodes.has(code));
+  });
+  const platforms = new Map();
+  for (const row of validRows) {
+    const data = row.data || row;
+    const platform = canonicalGnProduct(data.plataforma);
+    if (!platform) continue;
+    if (!platforms.has(platform)) {
+      platforms.set(platform, { platform, months: new Map(gnReportingMonths.map((month) => [month, 0])), tendencia: 0, meta: 0 });
+    }
+    const summary = platforms.get(platform);
+    const history = new Map((Array.isArray(data.history) ? data.history : []).map((month) => [String(month.label || '').trim(), numericValue(month.value)]));
+    for (const month of gnReportingMonths) summary.months.set(month, summary.months.get(month) + numericValue(history.get(month)));
+    summary.tendencia += numericValue(data.tendencia);
+    summary.meta += numericValue(data.meta);
+  }
+  const summaries = [...platforms.values()]
+    .filter((summary) => summary.meta >= 1 || summary.platform === 'MPLAY(TOTAL)')
+    .sort((a, b) => gnProductOrder.indexOf(a.platform) - gnProductOrder.indexOf(b.platform));
+  gnResultsBody?.replaceChildren();
+  for (const summary of summaries) {
+    const hasValidMeta = summary.meta >= 1;
+    const gap = hasValidMeta ? Math.abs(summary.tendencia - summary.meta) : null;
+    const achievement = hasValidMeta ? summary.tendencia / summary.meta : null;
+    const achievementClass = !hasValidMeta ? '' : achievement >= 1 ? 'positive' : achievement >= .9 ? 'warning' : 'negative';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<th scope="row">${escapeHtml(summary.platform)}</th>${gnReportingMonths.map((month) => `<td>${formatNumber(summary.months.get(month), 0)}</td>`).join('')}<td>${formatNumber(summary.tendencia, 0)}</td><td>${formatNumber(summary.meta, 0)}</td><td>${hasValidMeta ? formatNumber(gap, 0) : '—'}</td><td><strong class="achievement-value ${achievementClass}">${hasValidMeta ? formatPercent(achievement) : '—'}</strong></td>`;
+    gnResultsBody?.appendChild(tr);
+  }
+  const totals = summaries.reduce((result, summary) => {
+    for (const month of gnReportingMonths) result.months.set(month, result.months.get(month) + summary.months.get(month));
+    result.tendencia += summary.tendencia;
+    if (summary.meta >= 1) {
+      result.meta += summary.meta;
+    }
+    return result;
+  }, { months: new Map(gnReportingMonths.map((month) => [month, 0])), tendencia: 0, meta: 0 });
+  const totalGap = Math.abs(totals.tendencia - totals.meta);
+  const totalAchievement = totals.meta ? totals.tendencia / totals.meta : 0;
+  const totalAchievementClass = totalAchievement >= 1 ? 'positive' : totalAchievement >= .9 ? 'warning' : 'negative';
+  if (gnResultsTotal) gnResultsTotal.innerHTML = summaries.length ? `<tr><th>Total Geral</th>${gnReportingMonths.map((month) => `<td>${formatNumber(totals.months.get(month), 0)}</td>`).join('')}<td>${formatNumber(totals.tendencia, 0)}</td><td>${formatNumber(totals.meta, 0)}</td><td>${formatNumber(totalGap, 0)}</td><td><strong class="achievement-value ${totalAchievementClass}">${formatPercent(totalAchievement)}</strong></td></tr>` : '';
+  if (gnRealizado) gnRealizado.textContent = formatNumber(totals.months.get('OUT-26'), 0);
+  if (gnTendencia) gnTendencia.textContent = formatNumber(totals.tendencia, 0);
+  if (gnMeta) gnMeta.textContent = formatNumber(totals.meta, 0);
+  if (gnAtingimento) {
+    gnAtingimento.textContent = totals.meta ? formatPercent(totalAchievement) : '0%';
+    gnAtingimento.className = totalAchievement >= 1 ? 'positive-text' : totalAchievement >= .9 ? 'warning-text' : 'negative-text';
+  }
+  if (gnResultsEmpty) gnResultsEmpty.hidden = summaries.length > 0;
+}
+
 function renderAdministrative() {
+  renderGnResults();
   const managers = multiFilterValues(adminManagerFilter);
   const regions = multiFilterValues(adminRegionFilter);
   const codes = multiFilterValues(adminCodeFilter);
@@ -1036,15 +1240,17 @@ function renderAdministrative() {
   const rows = administrativeRows.filter((row) => {
     const data = row.data || row;
     const rowCode = row.codigo || data.codigo;
-    return (!managers.size || managers.has(row.manager))
+    return isValidGnProductRow(row)
+      && (!managers.size || managers.has(row.manager))
       && (!codes.size || codes.has(rowCode))
       && (!regions.size || regions.has(regionByCode.get(rowCode)))
       && (!products.size || products.has(String(data.plataforma || '').trim()));
   });
-  const monthLabels = recentMonthLabels(rows);
+  const detailRows = rows.filter((row) => String(row.codigo || row.data?.codigo || '').trim());
+  const monthLabels = recentMonthLabels(detailRows.length ? detailRows : rows);
   adminTableHead.innerHTML = `<th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th>${monthLabels.map((label) => `<th>${escapeHtml(label)}</th>`).join('')}<th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th>`;
   adminTableBody.replaceChildren();
-  for (const row of rows) {
+  for (const row of detailRows) {
     const data = row.data || row;
     const tr = document.createElement('tr');
     const rowCode = row.codigo || data.codigo;
@@ -1057,13 +1263,21 @@ function renderAdministrative() {
     tr.innerHTML = `<td>${escapeHtml(data.plataforma)}</td><td><strong>${escapeHtml(rowCode)}</strong></td><td><span class="region-chip">${escapeHtml(regionByCode.get(rowCode) || 'Sem regional')}</span></td><td>${escapeHtml(data.pdv)}</td><td>${escapeHtml(data.ddd)}</td>${historyCells}<td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td>${formatNumber(data.gap)}</td><td><strong class="achievement-value ${achievementReached ? 'positive' : 'negative'}">${formatPercent(data.atingimento)}</strong></td><td>${formatNumber(data.ytd25)}</td><td>${formatNumber(data.ytd26)}</td><td>${formatPercent(data.ytd)}</td>`;
     adminTableBody.appendChild(tr);
   }
-  const monthTotals = monthLabels.map((label) => rows.reduce((sum, row) => {
+  const monthTotals = monthLabels.map((label) => detailRows.reduce((sum, row) => {
     const data = row.data || row;
     const history = new Map((Array.isArray(data.history) ? data.history : []).map((month) => [String(month.label || '').trim(), month.value]));
     if (!history.size && String(data.current_month || '').trim() === label) return sum + numericValue(data.realizado);
     return sum + numericValue(history.get(label));
   }, 0));
-  const distinctPdvs = new Set(rows.map((row) => row.codigo || row.data?.codigo)).size;
+  const detailTendencia = detailRows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
+  const detailMeta = detailRows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
+  const detailGap = detailRows.reduce((sum, row) => sum + numericValue((row.data || row).gap), 0);
+  const detailYtd25 = detailRows.reduce((sum, row) => sum + numericValue((row.data || row).ytd25), 0);
+  const detailYtd26 = detailRows.reduce((sum, row) => sum + numericValue((row.data || row).ytd26), 0);
+  const detailAchievement = detailMeta ? detailTendencia / detailMeta : 0;
+  const detailYtd = detailYtd25 ? (detailYtd26 / detailYtd25) - 1 : 0;
+  adminTableTotal.innerHTML = detailRows.length ? `<tr><th colspan="5">TOTAL FILTRADO</th>${monthTotals.map((value) => `<td>${formatNumber(value)}</td>`).join('')}<td>${formatNumber(detailTendencia)}</td><td>${formatNumber(detailMeta)}</td><td>${formatNumber(detailGap)}</td><td><strong class="achievement-value ${detailAchievement >= 1 ? 'positive' : 'negative'}">${formatPercent(detailAchievement)}</strong></td><td>${formatNumber(detailYtd25)}</td><td>${formatNumber(detailYtd26)}</td><td><strong class="achievement-value ${detailYtd >= 0 ? 'positive' : 'negative'}">${formatPercent(detailYtd)}</strong></td></tr>` : '';
+  const distinctPdvs = new Set(detailRows.map((row) => row.codigo || row.data?.codigo)).size;
   const realizado = rows.reduce((sum, row) => sum + numericValue((row.data || row).realizado), 0);
   const tendencia = rows.reduce((sum, row) => sum + numericValue((row.data || row).tendencia), 0);
   const meta = rows.reduce((sum, row) => sum + numericValue((row.data || row).meta), 0);
@@ -1071,20 +1285,199 @@ function renderAdministrative() {
   const ytd25 = rows.reduce((sum, row) => sum + numericValue((row.data || row).ytd25), 0);
   const ytd26 = rows.reduce((sum, row) => sum + numericValue((row.data || row).ytd26), 0);
   const totalAchievement = meta ? tendencia / meta : 0;
-  const totalYtd = ytd25 ? (ytd26 / ytd25) - 1 : 0;
-  adminTableTotal.innerHTML = `<tr><th colspan="5">TOTAL FILTRADO</th>${monthTotals.map((value) => `<td>${formatNumber(value)}</td>`).join('')}<td>${formatNumber(tendencia)}</td><td>${formatNumber(meta)}</td><td>${formatNumber(gap)}</td><td><strong class="achievement-value ${totalAchievement >= 1 ? 'positive' : 'negative'}">${formatPercent(totalAchievement)}</strong></td><td>${formatNumber(ytd25)}</td><td>${formatNumber(ytd26)}</td><td><strong class="achievement-value ${totalYtd >= 0 ? 'positive' : 'negative'}">${formatPercent(totalYtd)}</strong></td></tr>`;
   const currentMonth = monthLabels.at(-1) || 'Mês atual';
   adminRowCount.textContent = String(rows.length);
-  adminPdvCount.textContent = String(distinctPdvs);
+  adminPdvCount.textContent = `${distinctPdvs} PDVs no recorte atual`;
   adminRealizado.textContent = formatNumber(realizado);
   adminTendencia.textContent = formatNumber(tendencia);
+  adminMeta.textContent = formatNumber(meta);
   adminAtingimento.textContent = meta ? formatPercent(tendencia / meta) : '0%';
   adminCurrentMonthLabel.textContent = `Realizado ${currentMonth}`;
-  renderProductScorecards(rows);
-  adminEmpty.hidden = rows.length > 0;
+  const selectedManagerNames = managers.size ? [...managers] : ['Todos os gestores'];
+  const periodStart = monthLabels[0] || '—';
+  const periodEnd = monthLabels.at(-1) || '—';
+  adminViewSubtitle.textContent = `${selectedManagerNames.join(', ')} | ${periodStart} a ${periodEnd}`;
+  renderProductScorecards(rows, products.size ? [...products] : gnProductOrder);
+  adminEmpty.hidden = detailRows.length > 0;
   const latest = rows[0];
   adminSourceFile.textContent = latest?.source_file || 'Nenhum arquivo importado';
   adminSourceDate.textContent = latest?.imported_at ? `Atualizado em ${new Date(latest.imported_at).toLocaleString('pt-BR')}` : '—';
+}
+
+function renderRegionalComparison() {
+  const permittedRegions = new Set(['Regional 1', 'Regional 2', 'Regional 3']);
+  const selectedProducts = multiFilterValues(comparisonProductFilter);
+  const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
+  const eligibleRows = administrativeRows.filter((row) => {
+    const data = row.data || row;
+    const product = canonicalGnProduct(data.plataforma);
+    const regional = regionByCode.get(row.codigo || data.codigo);
+    return isValidGnProductRow(row)
+      && permittedRegions.has(regional)
+      && (!selectedProducts.size || selectedProducts.has(product));
+  });
+  const regions = [...new Set(eligibleRows.map((row) => regionByCode.get(row.codigo || row.data?.codigo)))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if (selectedComparisonRegion && !regions.includes(selectedComparisonRegion)) selectedComparisonRegion = '';
+  const summaries = regions.map((regional) => {
+    const rows = eligibleRows.filter((row) => {
+      const data = row.data || row;
+      return regionByCode.get(row.codigo || data.codigo) === regional;
+    });
+    const codes = new Set();
+    const total = rows.reduce((acc, row) => {
+      const data = row.data || row;
+      const code = row.codigo || data.codigo;
+      if (code) codes.add(code);
+      acc.realizado += numericValue(data.realizado);
+      acc.tendencia += numericValue(data.tendencia);
+      acc.meta += numericValue(data.meta);
+      acc.ytd25 += numericValue(data.ytd25);
+      acc.ytd26 += numericValue(data.ytd26);
+      return acc;
+    }, { realizado: 0, tendencia: 0, meta: 0, ytd25: 0, ytd26: 0 });
+    total.regional = regional;
+    total.pdvs = codes.size;
+    total.gap = total.tendencia - total.meta;
+    total.atingimento = total.meta ? total.tendencia / total.meta : 0;
+    total.ytd = total.ytd25 ? (total.ytd26 / total.ytd25) - 1 : 0;
+    return total;
+  });
+  const hasData = summaries.length > 0;
+  comparisonRegionCount.textContent = String(summaries.length);
+  comparisonCards.replaceChildren();
+  comparisonBars.replaceChildren();
+  comparisonTableBody.replaceChildren();
+  const chartMax = Math.max(1.15, ...summaries.map((item) => item.atingimento * 1.06));
+  const goalPosition = (1 / chartMax) * 100;
+  summaries.forEach((item, index) => {
+    const status = item.meta && item.atingimento >= 1 ? 'positive' : 'negative';
+    const selected = selectedComparisonRegion === item.regional;
+    const tooltip = `${item.regional} — Realizado: ${formatNumber(item.realizado)} | Tendência: ${formatNumber(item.tendencia)} | Meta: ${formatNumber(item.meta)} | GAP: ${item.gap > 0 ? '+' : ''}${formatNumber(item.gap)}`;
+    const card = document.createElement('article');
+    card.className = `regional-comparison-card ${status}${selected ? ' selected' : ''}`;
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-pressed', String(selected));
+    card.title = tooltip;
+    card.innerHTML = `<header><span>${escapeHtml(item.regional)}</span><div><strong>${item.meta ? formatPercent(item.atingimento) : '—'}</strong><small>% ATINGIMENTO</small></div></header><dl><div><dt><i aria-hidden="true">▥</i> Realizado</dt><dd>${formatNumber(item.realizado)}</dd></div><div><dt><i aria-hidden="true">↗</i> Tendência</dt><dd>${formatNumber(item.tendencia)}</dd></div><div><dt><i aria-hidden="true">◎</i> Meta</dt><dd>${formatNumber(item.meta)}</dd></div><div><dt><i aria-hidden="true">${item.gap >= 0 ? '↑' : '↓'}</i> GAP</dt><dd class="${item.gap >= 0 ? 'positive-text' : 'negative-text'}">${item.gap > 0 ? '+' : ''}${formatNumber(item.gap)}</dd></div></dl><footer><span aria-hidden="true">▦</span>${item.pdvs} PDV${item.pdvs === 1 ? '' : 's'} na base</footer>`;
+    const selectRegion = () => { selectedComparisonRegion = selected ? '' : item.regional; renderRegionalComparison(); };
+    card.addEventListener('click', selectRegion);
+    card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectRegion(); } });
+    comparisonCards.appendChild(card);
+    const bar = document.createElement('button');
+    bar.type = 'button';
+    bar.className = `regional-bar-row${selected ? ' selected' : ''}`;
+    bar.title = tooltip;
+    bar.setAttribute('aria-pressed', String(selected));
+    bar.innerHTML = `<strong>${escapeHtml(item.regional)}</strong><span class="regional-bar-track"><span class="${status}" style="width:${item.meta ? (item.atingimento / chartMax) * 100 : 0}%"></span><i aria-label="Meta de 100%" style="left:${goalPosition}%"></i></span><b class="${status}">${item.meta ? formatPercent(item.atingimento) : '—'}</b>`;
+    bar.addEventListener('click', selectRegion);
+    comparisonBars.appendChild(bar);
+  });
+  const sorted = [...summaries].sort((a, b) => {
+    const mode = comparisonSort.value;
+    if (mode === 'achievement-desc') return b.atingimento - a.atingimento;
+    if (mode === 'achievement-asc') return a.atingimento - b.atingimento;
+    if (mode === 'realized-desc') return b.realizado - a.realizado;
+    if (mode === 'gap-asc') return a.gap - b.gap;
+    if (mode === 'trend-desc') return b.tendencia - a.tendencia;
+    if (mode === 'ytd-desc') return b.ytd - a.ytd;
+    return a.regional.localeCompare(b.regional, 'pt-BR');
+  });
+  for (const item of sorted) {
+    const status = item.meta && item.atingimento >= 1 ? 'positive' : 'negative';
+    const tr = document.createElement('tr');
+    tr.classList.toggle('selected', selectedComparisonRegion === item.regional);
+    tr.innerHTML = `<th scope="row">${escapeHtml(item.regional)}</th><td>${item.pdvs}</td><td>${formatNumber(item.realizado)}</td><td>${formatNumber(item.tendencia)}</td><td>${formatNumber(item.meta)}</td><td class="${item.gap >= 0 ? 'positive-text' : 'negative-text'}">${item.gap > 0 ? '+' : ''}${formatNumber(item.gap)}</td><td><strong class="achievement-value ${status}">${item.meta ? formatPercent(item.atingimento) : '—'}</strong></td><td>${formatNumber(item.ytd25)}</td><td>${formatNumber(item.ytd26)}</td><td class="${item.ytd >= 0 ? 'positive-text' : 'negative-text'}">${item.ytd > 0 ? '+' : ''}${formatPercent(item.ytd)}</td>`;
+    comparisonTableBody.appendChild(tr);
+  }
+  if (!summaries.length) comparisonInsightText.textContent = 'Não há dados com meta válida no recorte atual.';
+  else {
+    const valid = summaries.filter((item) => item.meta > 0);
+    const lowest = [...valid].sort((a, b) => a.atingimento - b.atingimento || a.gap - b.gap)[0];
+    const highest = [...valid].sort((a, b) => b.atingimento - a.atingimento || b.gap - a.gap)[0];
+    const negativeGap = [...valid].filter((item) => item.gap < 0).sort((a, b) => a.gap - b.gap)[0];
+    if (!valid.length) comparisonInsightText.textContent = 'Não há meta válida suficiente para calcular o atingimento regional.';
+    else if (valid.every((item) => item.atingimento >= 1)) comparisonInsightText.textContent = `${highest.regional} lidera com ${formatPercent(highest.atingimento)}. ${lowest.regional} possui a menor margem acima da meta, com GAP de +${formatNumber(lowest.gap)}.`;
+    else if (valid.every((item) => item.atingimento < 1)) comparisonInsightText.textContent = `${lowest.regional} exige maior recuperação: menor atingimento projetado (${formatPercent(lowest.atingimento)})${negativeGap ? ` e GAP de ${formatNumber(negativeGap.gap)}` : ''}.`;
+    else comparisonInsightText.textContent = `${lowest.regional} é o principal ponto de atenção: menor atingimento projetado (${formatPercent(lowest.atingimento)})${negativeGap ? ` e maior GAP negativo (${formatNumber(negativeGap.gap)})` : ''}. Melhor desempenho: ${highest.regional}, com ${formatPercent(highest.atingimento)}.`;
+  }
+  const detailRows = selectedComparisonRegion ? eligibleRows.filter((row) => regionByCode.get(row.codigo || row.data?.codigo) === selectedComparisonRegion) : [];
+  comparisonDetail.hidden = !selectedComparisonRegion;
+  comparisonDetailBody.replaceChildren();
+  if (selectedComparisonRegion) {
+    comparisonDetailTitle.textContent = selectedComparisonRegion;
+    for (const row of detailRows) {
+      const data = row.data || row;
+      const gap = numericValue(data.tendencia) - numericValue(data.meta);
+      const achievement = numericValue(data.meta) ? numericValue(data.tendencia) / numericValue(data.meta) : 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td><strong>${escapeHtml(canonicalGnProduct(data.plataforma) || data.plataforma)}</strong></td><td>${escapeHtml(row.codigo || data.codigo)}</td><td>${escapeHtml(data.pdv || '—')}</td><td>${formatNumber(data.realizado)}</td><td>${formatNumber(data.tendencia)}</td><td>${formatNumber(data.meta)}</td><td class="${gap >= 0 ? 'positive-text' : 'negative-text'}">${gap > 0 ? '+' : ''}${formatNumber(gap)}</td><td><strong class="achievement-value ${achievement >= 1 ? 'positive' : 'negative'}">${data.meta ? formatPercent(achievement) : '—'}</strong></td>`;
+      comparisonDetailBody.appendChild(tr);
+    }
+  }
+  comparisonEmpty.hidden = hasData;
+}
+
+function renderStoreComparison() {
+  const selectedProducts = multiFilterValues(storeComparisonProductFilter);
+  const selectedRegions = multiFilterValues(storeComparisonRegionFilter);
+  const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
+  const stores = new Map();
+  for (const row of administrativeRows) {
+    const data = row.data || row;
+    const code = row.codigo || data.codigo;
+    const product = canonicalGnProduct(data.plataforma);
+    const regional = regionByCode.get(code) || 'Sem regional';
+    if (!code || !isValidGnProductRow(row)) continue;
+    if (selectedProducts.size && !selectedProducts.has(product)) continue;
+    if (selectedRegions.size && !selectedRegions.has(regional)) continue;
+    if (!stores.has(code)) stores.set(code, { code, regional, pdv: data.pdv || '—', realizado: 0, tendencia: 0, meta: 0, ytd25: 0, ytd26: 0 });
+    const item = stores.get(code);
+    if (item.pdv === '—' && data.pdv) item.pdv = data.pdv;
+    item.realizado += numericValue(data.realizado);
+    item.tendencia += numericValue(data.tendencia);
+    item.meta += numericValue(data.meta);
+    item.ytd25 += numericValue(data.ytd25);
+    item.ytd26 += numericValue(data.ytd26);
+  }
+  const summaries = [...stores.values()].map((item) => ({
+    ...item,
+    gap: item.tendencia - item.meta,
+    atingimento: item.meta ? item.tendencia / item.meta : 0,
+    ytd: item.ytd25 ? (item.ytd26 / item.ytd25) - 1 : 0
+  })).sort((a, b) => b.atingimento - a.atingimento || b.tendencia - a.tendencia);
+  const totalMeta = summaries.reduce((sum, item) => sum + item.meta, 0);
+  const totalTendencia = summaries.reduce((sum, item) => sum + item.tendencia, 0);
+  const leader = summaries[0];
+  storeComparisonCount.textContent = String(summaries.length);
+  storeSummaryTotal.textContent = String(summaries.length);
+  storeSummaryLeader.textContent = leader?.code || '—';
+  storeSummaryLeaderValue.textContent = leader ? formatPercent(leader.atingimento) : '0%';
+  storeSummaryAchievement.textContent = totalMeta ? formatPercent(totalTendencia / totalMeta) : '0%';
+  storeComparisonBars.replaceChildren();
+  storeComparisonTableBody.replaceChildren();
+  const scaleMaximum = Math.max(1.1, ...summaries.map((item) => item.atingimento)) * 1.04;
+  for (const item of summaries) {
+    const status = item.atingimento >= 1 ? 'positive' : 'negative';
+    const bar = document.createElement('div');
+    bar.className = 'regional-bar-row';
+    const tooltip = `Realizado: ${formatNumber(item.realizado)} · Meta: ${formatNumber(item.meta)} · Tendência: ${formatNumber(item.tendencia)} · GAP: ${item.gap > 0 ? '+' : ''}${formatNumber(item.gap)}`;
+    bar.innerHTML = `<strong title="${escapeHtml(item.pdv)}">${escapeHtml(item.code)}</strong><div class="regional-bar-track" title="${escapeHtml(tooltip)}"><span class="${status}" style="width:${(item.atingimento / scaleMaximum) * 100}%"></span><i aria-hidden="true" style="left:${(1 / scaleMaximum) * 100}%"></i></div><b class="${status}">${formatPercent(item.atingimento)}</b>`;
+    storeComparisonBars.appendChild(bar);
+  }
+  const tableRows = [...summaries].sort((a, b) => {
+    const left = a[storeComparisonSort.key];
+    const right = b[storeComparisonSort.key];
+    if (typeof left === 'string' || typeof right === 'string') return String(left).localeCompare(String(right), 'pt-BR') * storeComparisonSort.direction;
+    return ((numericValue(left) - numericValue(right)) || a.code.localeCompare(b.code, 'pt-BR')) * storeComparisonSort.direction;
+  });
+  for (const item of tableRows) {
+    const status = item.atingimento >= 1 ? 'positive' : item.atingimento >= .9 ? 'warning' : 'negative';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<th scope="row">${escapeHtml(item.code)}</th><td><span class="region-chip">${escapeHtml(item.regional)}</span></td><td>${escapeHtml(item.pdv)}</td><td>${formatNumber(item.realizado)}</td><td>${formatNumber(item.tendencia)}</td><td>${formatNumber(item.meta)}</td><td class="${item.gap >= 0 ? 'positive-text' : 'negative-text'}">${item.gap > 0 ? '+' : ''}${formatNumber(item.gap)}</td><td><strong class="achievement-value ${status}">${formatPercent(item.atingimento)}</strong></td><td>${formatNumber(item.ytd25)}</td><td>${formatNumber(item.ytd26)}</td><td class="${item.ytd >= 0 ? 'positive-text' : 'negative-text'}">${item.ytd > 0 ? '+' : ''}${formatPercent(item.ytd)}</td>`;
+    storeComparisonTableBody.appendChild(tr);
+  }
+  storeComparisonEmpty.hidden = summaries.length > 0;
 }
 
 function updateAdministrativeFilters() {
@@ -1093,18 +1486,13 @@ function updateAdministrativeFilters() {
   const selectedManagers = multiFilterValues(adminManagerFilter);
   const selectedRegions = multiFilterValues(adminRegionFilter);
   const regionByCode = new Map(storeRegions.map((item) => [item.code, item.regional]));
-  const managerRows = administrativeRows.filter((row) => !selectedManagers.size || selectedManagers.has(row.manager));
+  const managerRows = administrativeRows.filter((row) => isValidGnProductRow(row) && (!selectedManagers.size || selectedManagers.has(row.manager)));
   const managerCodes = [...new Set(managerRows
     .filter((row) => !selectedRegions.size || selectedRegions.has(regionByCode.get(row.codigo)))
     .map((row) => row.codigo || row.data?.codigo))].filter(Boolean).sort();
   populateMultiFilter(adminCodeFilter, managerCodes, 'Todos os códigos');
   const selectedCodes = multiFilterValues(adminCodeFilter);
-  const products = [...new Set(managerRows
-    .filter((row) => !selectedRegions.size || selectedRegions.has(regionByCode.get(row.codigo)))
-    .filter((row) => !selectedCodes.size || selectedCodes.has(row.codigo || row.data?.codigo))
-    .map((row) => String((row.data || row).plataforma || '').trim())
-    .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  populateMultiFilter(adminProductFilter, products, 'Todos os produtos');
+  populateMultiFilter(adminProductFilter, gnProductOrder, 'Todos os produtos');
 }
 
 function renderStoreRegions() {
@@ -1132,15 +1520,26 @@ async function loadStoreRegions() {
 async function loadAdministrative() {
   refreshAdminButton.disabled = true;
   try {
-    await loadStoreRegions();
+    try {
+      await loadStoreRegions();
+    } catch {
+      storeRegions = defaultStoreRegions.map(([code, regional]) => ({ code, regional }));
+    }
     administrativeRows = [];
-    for (let offset = 0; ; offset += 1000) {
-      const page = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', { headers: { Range: `${offset}-${offset + 999}` } }, true) || [];
-      administrativeRows.push(...page.filter((row) => numericValue((row.data || row).meta) >= 1));
-      if (page.length < 1000) break;
+    try {
+      for (let offset = 0; ; offset += 1000) {
+        const page = await apiRequest('/rest/v1/administrativo_m5?select=id,manager,codigo,source_file,imported_at,data&order=id.asc', { headers: { Range: `${offset}-${offset + 999}` } }, true) || [];
+        administrativeRows.push(...page);
+        if (page.length < 1000) break;
+      }
+    } catch {
+      administrativeRows = [];
     }
     const managers = [...new Set(administrativeRows.map((row) => row.manager))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-    populateMultiFilter(adminManagerFilter, managers.length ? managers : ['Thiago Goulart'], 'Todos os gestores', managers.includes('Thiago Goulart') ? 'Thiago Goulart' : '');
+    populateMultiFilter(adminManagerFilter, managers, 'Todos os gestores');
+    populateMultiFilter(comparisonProductFilter, gnProductOrder, 'Todos os produtos');
+    populateMultiFilter(storeComparisonProductFilter, gnProductOrder, 'Todos os produtos');
+    populateMultiFilter(storeComparisonRegionFilter, [...new Set(storeRegions.map((item) => item.regional))].sort(), 'Todas as regionais');
     updateAdministrativeFilters();
     renderAdministrative();
   } catch (error) {
@@ -1163,7 +1562,7 @@ async function previewAdministrativeFile(file) {
     databaseRowCount.textContent = String(rows.length);
     databaseThiagoCount.textContent = String(rows.filter((row) => row.manager === 'Thiago Goulart').length);
     databaseImportPreview.hidden = false;
-    databaseUploadStatus.textContent = 'Arquivo validado. Considerados somente registros com Meta RVV = SIM e META maior ou igual a 1.';
+    databaseUploadStatus.textContent = 'Arquivo validado. Produtos sem meta permanecem visíveis; META maior ou igual a 1 é exigida somente no cálculo de atingimento.';
     databaseUploadButton.disabled = false;
   } catch (error) {
     pendingAdministrativeImport = null;
@@ -1210,7 +1609,7 @@ async function saveStoreRegion(event) {
   }
 }
 
-const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso', administrativo: 'Análise de Resultado', 'gestao-banco': 'Gestão Banco de dados' };
+const viewLabels = { cadastro: 'Novo vendedor', acoes: 'Revisão do cadastro', vendedores: 'Vendedores cadastrados', 'bd-vendedores': 'BD de dados vendedor', acessos: 'Controle de acesso', administrativo: 'Análise de Resultado', comparativo: 'Comparativo Regional', 'comparativo-loja': 'Comparativo Loja', 'gestao-banco': 'Gestão Banco de dados' };
 
 async function accessApi(method = 'GET', body = null) {
   const session = getSession();
@@ -1226,6 +1625,74 @@ function formatAccessDate(value) {
   return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('pt-BR');
 }
 
+const accessRoleLabels = { ADMINISTRADOR: 'Administrador', GERENTE_NEGOCIO: 'Gerente de Negócio', LOJA: 'Loja' };
+const accessPermissionLabels = { acoes: 'Revisão', vendedores: 'Vendedores', 'bd-vendedores': 'BD Vendedor', administrativo: 'Análise', 'gestao-banco': 'Gestão BD', acessos: 'Controle de Acesso' };
+
+function renderAccessStoreOptions(query = '') {
+  const search = normalizeHeader(query);
+  accessStoreList.replaceChildren();
+  for (const store of accessStores.filter((item) => !search || normalizeHeader(`${item.code} ${item.pdv}`).includes(search))) {
+    const label = document.createElement('label');
+    label.innerHTML = `<input type="checkbox" value="${escapeHtml(store.code)}" ${accessSelectedStoreCodes.has(store.code) ? 'checked' : ''}><span><strong>${escapeHtml(store.code)} · ${escapeHtml(store.pdv)}</strong><small>${escapeHtml(store.regional)} · ${escapeHtml(store.manager)}</small></span>`;
+    accessStoreList.appendChild(label);
+  }
+  accessSelectedCount.textContent = `${accessSelectedStoreCodes.size} ${accessSelectedStoreCodes.size === 1 ? 'loja selecionada' : 'lojas selecionadas'}`;
+}
+
+function selectedAccessStores() { return [...accessSelectedStoreCodes]; }
+
+function updateAccessFormScope() {
+  const role = accessForm.elements.access_role.value;
+  accessManagerField.hidden = role !== 'GERENTE_NEGOCIO';
+  accessStoresField.hidden = role !== 'LOJA';
+  accessManagerField.querySelector('select').required = role === 'GERENTE_NEGOCIO';
+  document.querySelectorAll('.admin-permission input').forEach((input) => {
+    const allowed = role === 'ADMINISTRADOR';
+    input.disabled = !allowed;
+    if (!allowed) input.checked = false;
+  });
+}
+
+function resetAccessForm() {
+  editingAccessUser = null;
+  accessSelectedStoreCodes.clear();
+  accessForm.reset();
+  accessForm.elements.email.disabled = false;
+  accessForm.elements.password.required = true;
+  accessForm.elements.password.closest('label').hidden = false;
+  accessCancelEdit.hidden = true;
+  document.querySelector('#access-create-title').textContent = 'Cadastrar usuário';
+  renderAccessStoreOptions();
+  updateAccessFormScope();
+}
+
+function editAccessUser(user) {
+  editingAccessUser = user;
+  accessForm.elements.email.value = user.email;
+  accessForm.elements.email.disabled = true;
+  accessForm.elements.password.required = false;
+  accessForm.elements.password.closest('label').hidden = true;
+  accessForm.elements.access_role.value = user.access_role;
+  accessForm.elements.manager.value = user.manager || '';
+  accessForm.elements.notify_new_registration.checked = user.notify_new_registration === true;
+  accessForm.querySelectorAll('input[name="permission"]').forEach((input) => { input.checked = user.permissions?.[input.value] === true; });
+  renderAccessStoreOptions();
+  accessSelectedStoreCodes.clear();
+  (user.store_codes || []).forEach((code) => accessSelectedStoreCodes.add(code));
+  renderAccessStoreOptions(accessStoreSearch.value);
+  accessCancelEdit.hidden = false;
+  document.querySelector('#access-create-title').textContent = 'Editar usuário';
+  updateAccessFormScope();
+  accessForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function accessPayloadFromForm() {
+  const data = Object.fromEntries(new FormData(accessForm));
+  const permissions = {};
+  accessForm.querySelectorAll('input[name="permission"]').forEach((input) => { permissions[input.value] = input.checked; });
+  return { ...data, email: editingAccessUser?.email || data.email, id: editingAccessUser?.id, active: editingAccessUser?.active ?? true, notify_new_registration: data.notify_new_registration === 'true', manager: data.manager || null, store_codes: selectedAccessStores(), permissions };
+}
+
 function renderAccessUsers() {
   accessList.replaceChildren();
   accessCount.textContent = String(accessUsers.filter((user) => user.active).length);
@@ -1233,10 +1700,12 @@ function renderAccessUsers() {
     const row = document.createElement('tr');
     const statusClass = user.active ? 'active' : 'inactive';
     const statusText = user.active ? 'Ativo' : 'Desativado';
-    row.innerHTML = `<td><strong>${escapeHtml(user.email || 'Sem e-mail')}</strong><small>${user.last_sign_in_at ? `Último acesso: ${formatAccessDate(user.last_sign_in_at)}` : 'Ainda não acessou'}</small></td><td><span class="access-status ${statusClass}">${statusText}</span></td><td><label class="notify-toggle"><input class="access-notify" type="checkbox" ${user.notify_new_registration ? 'checked' : ''}> ${user.notify_new_registration ? 'Sim' : 'Não'}</label></td><td>${formatAccessDate(user.created_at)}</td><td><div class="access-row-actions"><button class="button secondary access-toggle" type="button">${user.active ? 'Desativar' : 'Ativar'}</button><button class="button danger access-delete" type="button">Excluir</button></div></td>`;
-    row.querySelector('.access-notify').addEventListener('change', (event) => toggleAccessNotification(user, event.target.checked));
+    const scope = user.access_role === 'GERENTE_NEGOCIO' ? user.manager : user.access_role === 'LOJA' ? `${(user.store_codes || []).length} loja(s): ${(user.store_codes || []).join(', ')}` : 'Todos os GNs e lojas';
+    const menus = Object.entries(user.permissions || {}).filter(([, allowed]) => allowed).map(([key]) => accessPermissionLabels[key] || key).join(', ') || 'Nenhum';
+    row.innerHTML = `<td><strong>${escapeHtml(user.email || 'Sem e-mail')}</strong><small>${user.last_sign_in_at ? `Último acesso: ${formatAccessDate(user.last_sign_in_at)}` : 'Ainda não acessou'}</small></td><td><strong>${escapeHtml(accessRoleLabels[user.access_role] || user.access_role)}</strong></td><td class="access-scope-cell">${escapeHtml(scope)}</td><td class="access-menus-cell">${escapeHtml(menus)}</td><td><span class="access-status ${statusClass}">${statusText}</span></td><td>${formatAccessDate(user.created_at)}</td><td><div class="access-row-actions"><button class="button secondary access-edit" type="button">Editar</button><button class="button secondary access-toggle" type="button">${user.active ? 'Desativar' : 'Ativar'}</button><button class="button secondary access-revoke" type="button">Revogar sessões</button></div></td>`;
+    row.querySelector('.access-edit').addEventListener('click', () => editAccessUser(user));
     row.querySelector('.access-toggle').addEventListener('click', () => toggleAccessUser(user));
-    row.querySelector('.access-delete').addEventListener('click', () => deleteAccessUser(user));
+    row.querySelector('.access-revoke').addEventListener('click', () => revokeAccessSessions(user));
     accessList.appendChild(row);
   }
   accessEmpty.hidden = accessUsers.length > 0;
@@ -1247,6 +1716,13 @@ async function loadAccessUsers() {
   try {
     const result = await accessApi();
     accessUsers = result?.users || [];
+    accessManagers = result?.managers || [];
+    accessStores = result?.stores || [];
+    const managerSelect = accessManagerField.querySelector('select');
+    const currentManager = managerSelect.value;
+    managerSelect.innerHTML = `<option value="">Selecione um gestor</option>${accessManagers.map((manager) => `<option value="${escapeHtml(manager)}">${escapeHtml(manager)}</option>`).join('')}`;
+    managerSelect.value = currentManager;
+    renderAccessStoreOptions(accessStoreSearch.value);
     renderAccessUsers();
   } catch (error) {
     showToast(error.message || 'Não foi possível carregar os usuários.');
@@ -1259,7 +1735,7 @@ async function toggleAccessUser(user) {
   const action = user.active ? 'desativar' : 'ativar';
   if (!window.confirm(`Deseja ${action} o acesso de ${user.email}?`)) return;
   try {
-    await accessApi('PATCH', { id: user.id, email: user.email, active: !user.active, notify_new_registration: user.notify_new_registration });
+    await accessApi('PATCH', { ...user, active: !user.active });
     showToast(`Acesso ${user.active ? 'desativado' : 'ativado'} com sucesso.`);
     await loadAccessUsers();
   } catch (error) {
@@ -1267,25 +1743,14 @@ async function toggleAccessUser(user) {
   }
 }
 
-async function toggleAccessNotification(user, enabled) {
+async function revokeAccessSessions(user) {
+  if (!window.confirm(`Revogar todas as sessões de ${user.email}?`)) return;
   try {
-    await accessApi('PATCH', { id: user.id, email: user.email, active: user.active, notify_new_registration: enabled });
-    showToast(enabled ? 'Administrador receberá novos protocolos.' : 'Notificação de protocolos desativada.');
+    await accessApi('PATCH', { id: user.id, email: user.email, action: 'revoke_sessions' });
+    showToast('Sessões revogadas. O usuário deverá entrar novamente.');
     await loadAccessUsers();
   } catch (error) {
-    showToast(error.message || 'Não foi possível alterar a notificação.');
-    await loadAccessUsers();
-  }
-}
-
-async function deleteAccessUser(user) {
-  if (!window.confirm(`Excluir permanentemente o usuário ${user.email}? Esta ação não pode ser desfeita.`)) return;
-  try {
-    await accessApi('DELETE', { id: user.id, email: user.email });
-    showToast('Usuário excluído com sucesso.');
-    await loadAccessUsers();
-  } catch (error) {
-    showToast(error.message || 'Não foi possível excluir o usuário.');
+    showToast(error.message || 'Não foi possível revogar as sessões.');
   }
 }
 
@@ -1302,13 +1767,27 @@ function updateAuthUi() {
 }
 
 async function showView(viewName, updateHash = true) {
-  const gnViews = ['acoes', 'vendedores', 'bd-vendedores', 'acessos', 'administrativo', 'gestao-banco'];
+  const gnViews = ['acoes', 'vendedores', 'bd-vendedores', 'acessos', 'administrativo', 'comparativo', 'comparativo-loja', 'gestao-banco'];
   if (gnViews.includes(viewName) && !getSession()) {
     openAuth(viewName);
     return;
   }
+  if (gnViews.includes(viewName) && !currentAccessProfile) await loadCurrentAccessProfile();
+  if (gnViews.includes(viewName) && !hasViewPermission(viewName)) {
+    showToast('Seu perfil não possui permissão para esta funcionalidade.');
+    if (viewName !== 'cadastro') await showView('cadastro', updateHash);
+    return;
+  }
   const target = document.querySelector(`[data-view="${viewName}"]`);
   if (!target) return;
+  const previousView = document.body.dataset.currentView || '';
+  document.body.dataset.currentView = viewName;
+  if (window.innerWidth > 820) {
+    if (viewName === 'administrativo') sidebar.classList.add('collapsed');
+    else if (previousView === 'administrativo' && localStorage.getItem('gestao-sidebar-collapsed') !== 'true') sidebar.classList.remove('collapsed');
+    menuButton.setAttribute('aria-expanded', String(!sidebar.classList.contains('collapsed')));
+  }
+  document.body.classList.toggle('comparison-compact', viewName === 'comparativo');
   document.querySelectorAll('.app-view').forEach((view) => {
     const active = view === target;
     view.hidden = !active;
@@ -1316,6 +1795,12 @@ async function showView(viewName, updateHash = true) {
   });
   document.querySelectorAll('[data-view-link]').forEach((link) => {
     const active = link.dataset.viewLink === viewName;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('.analysis-shortcuts [data-view-target]').forEach((link) => {
+    const active = link.dataset.viewTarget === viewName;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -1328,6 +1813,8 @@ async function showView(viewName, updateHash = true) {
   if (viewName === 'bd-vendedores') await loadArchivedSellers();
   if (viewName === 'acessos') await loadAccessUsers();
   if (viewName === 'administrativo') await loadAdministrative();
+  if (viewName === 'comparativo') { await loadAdministrative(); renderRegionalComparison(); }
+  if (viewName === 'comparativo-loja') { await loadAdministrative(); renderStoreComparison(); }
   if (viewName === 'gestao-banco') await loadStoreRegions();
   if (viewName === 'acoes') reviewName.textContent = form.elements.nome.value || 'Novo vendedor';
   if (updateHash) history.replaceState(null, '', `#${viewName}`);
@@ -1353,6 +1840,8 @@ authForm.addEventListener('submit', async (event) => {
       body: JSON.stringify(credentials)
     });
     sessionStorage.setItem(authStorageKey, JSON.stringify(session));
+    await loadCurrentAccessProfile();
+    if (!currentAccessProfile) throw new Error('Usuário sem acesso ativo à Gestão GN.');
     authModal.hidden = true;
     authForm.reset();
     updateAuthUi();
@@ -1370,8 +1859,10 @@ authForm.addEventListener('submit', async (event) => {
     }
     await showView(destination);
     showToast('Acesso autorizado.');
-  } catch {
-    authError.textContent = 'Login ou senha inválidos.';
+  } catch (error) {
+    authError.textContent = error?.message && !/invalid login credentials/i.test(error.message)
+      ? `Login aceito, mas o perfil não pôde ser carregado: ${error.message}`
+      : 'Login ou senha inválidos.';
   } finally {
     submit.disabled = false;
   }
@@ -1387,11 +1878,11 @@ accessForm.addEventListener('submit', async (event) => {
   const submit = accessForm.querySelector('button[type="submit"]');
   submit.disabled = true;
   try {
-    const payload = Object.fromEntries(new FormData(accessForm));
-    payload.notify_new_registration = payload.notify_new_registration === 'true';
-    await accessApi('POST', payload);
-    accessForm.reset();
-    showToast('Novo usuário cadastrado com sucesso.');
+    const payload = accessPayloadFromForm();
+    if (payload.access_role === 'LOJA' && !payload.store_codes.length) throw new Error('Selecione pelo menos uma loja autorizada.');
+    await accessApi(editingAccessUser ? 'PATCH' : 'POST', payload);
+    showToast(editingAccessUser ? 'Permissões atualizadas com sucesso.' : 'Novo usuário cadastrado com sucesso.');
+    resetAccessForm();
     await loadAccessUsers();
   } catch (error) {
     showToast(error.message || 'Não foi possível cadastrar o usuário.');
@@ -1399,6 +1890,18 @@ accessForm.addEventListener('submit', async (event) => {
     submit.disabled = false;
   }
 });
+
+accessForm.addEventListener('change', (event) => {
+  if (event.target.name === 'access_role') updateAccessFormScope();
+});
+accessStoreSearch.addEventListener('input', () => renderAccessStoreOptions(accessStoreSearch.value));
+accessStoreList.addEventListener('change', (event) => {
+  if (!event.target.matches('input[type="checkbox"]')) return;
+  if (event.target.checked) accessSelectedStoreCodes.add(event.target.value);
+  else accessSelectedStoreCodes.delete(event.target.value);
+  renderAccessStoreOptions(accessStoreSearch.value);
+});
+accessCancelEdit.addEventListener('click', resetAccessForm);
 
 refreshAccessButton.addEventListener('click', loadAccessUsers);
 refreshAdminButton.addEventListener('click', loadAdministrative);
@@ -1429,6 +1932,44 @@ adminManagerFilter.addEventListener('change', (event) => { applyMultiFilterChang
 adminRegionFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminRegionFilter, event); updateAdministrativeFilters(); renderAdministrative(); });
 adminCodeFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminCodeFilter, event); updateAdministrativeFilters(); renderAdministrative(); });
 adminProductFilter.addEventListener('change', (event) => { applyMultiFilterChange(adminProductFilter, event); renderAdministrative(); });
+comparisonProductFilter.addEventListener('change', (event) => { applyMultiFilterChange(comparisonProductFilter, event); renderRegionalComparison(); });
+comparisonSort.addEventListener('change', renderRegionalComparison);
+clearComparisonRegionButton.addEventListener('click', () => { selectedComparisonRegion = ''; renderRegionalComparison(); });
+clearComparisonFiltersButton.addEventListener('click', () => {
+  comparisonProductFilter.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.checked = false;
+    input.indeterminate = false;
+  });
+  updateMultiFilterLabel(comparisonProductFilter);
+  renderRegionalComparison();
+  closeMultiFilters();
+  showToast('Filtro de produto removido.');
+});
+storeComparisonProductFilter.addEventListener('change', (event) => { applyMultiFilterChange(storeComparisonProductFilter, event); renderStoreComparison(); });
+storeComparisonRegionFilter.addEventListener('change', (event) => { applyMultiFilterChange(storeComparisonRegionFilter, event); renderStoreComparison(); });
+clearStoreComparisonFiltersButton.addEventListener('click', () => {
+  [storeComparisonProductFilter, storeComparisonRegionFilter].forEach((control) => {
+    control.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = false;
+      input.indeterminate = false;
+    });
+    updateMultiFilterLabel(control);
+  });
+  renderStoreComparison();
+  closeMultiFilters();
+  showToast('Filtros do comparativo por loja removidos.');
+});
+document.querySelectorAll('[data-store-sort]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const key = button.dataset.storeSort;
+    storeComparisonSort = storeComparisonSort.key === key
+      ? { key, direction: storeComparisonSort.direction * -1 }
+      : { key, direction: ['code', 'regional', 'pdv'].includes(key) ? 1 : -1 };
+    document.querySelectorAll('[data-store-sort]').forEach((item) => item.removeAttribute('aria-sort'));
+    button.setAttribute('aria-sort', storeComparisonSort.direction === 1 ? 'ascending' : 'descending');
+    renderStoreComparison();
+  });
+});
 databaseFileInput.addEventListener('change', () => {
   const file = databaseFileInput.files?.[0];
   if (file) previewAdministrativeFile(file);
@@ -1444,15 +1985,21 @@ logoutButton.addEventListener('click', () => {
   selectedSellerId = null;
   selectedSellerIds.clear();
   selectedArchivedIds.clear();
+  currentAccessProfile = null;
   setGnMenuOpen(false);
   updateAuthUi();
   showView('cadastro');
   showToast('Acesso encerrado.');
 });
 
-updateAuthUi();
-renderSellers();
-showView(location.hash.replace('#', '') || 'cadastro', false);
+async function initializeApp() {
+  updateAuthUi();
+  if (getSession()) await loadCurrentAccessProfile();
+  else applyAccessNavigation();
+  renderSellers();
+  await showView(location.hash.replace('#', '') || 'cadastro', false);
+}
+initializeApp();
 
 function setFields(values, notify = true) {
   for (const [name, value] of Object.entries(values || {})) {

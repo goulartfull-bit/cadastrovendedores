@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23e3261c'/%3E%3Cpath d='M18 17h28v30H18z' fill='none' stroke='white' stroke-width='5'/%3E%3Cpath d='m24 32 6 6 11-13' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="./styles.css?v=20261013-22">
+  <link rel="stylesheet" href="./styles.css?v=20261019-11">
 </head>
 <body>
   <aside class="sidebar" aria-label="Navegação principal">
@@ -33,6 +33,8 @@
           <a class="nav-item nav-subitem" href="#bd-vendedores" data-view-link="bd-vendedores"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></span><span>BD de dados vendedor</span></a>
           <a class="nav-item nav-subitem" href="#acessos" data-view-link="acessos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0M18 8h4M20 6v4"/></svg></span><span>Controle de acesso</span></a>
           <a class="nav-item nav-subitem" href="#administrativo" data-view-link="administrativo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 16l4-5 3 3 5-7"/></svg></span><span>Análise de Resultado</span></a>
+          <a class="nav-item nav-subitem nav-analysis-child" href="#comparativo" data-view-link="comparativo"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V4M16 19v-7M22 19H2"/></svg></span><span>Comparativo</span></a>
+          <a class="nav-item nav-subitem nav-analysis-child" href="#comparativo-loja" data-view-link="comparativo-loja"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 12h2M13 12h2M9 16h2M13 16h2"/></svg></span><span>Comparativo Loja</span></a>
           <a class="nav-item nav-subitem" href="#gestao-banco" data-view-link="gestao-banco"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M15 13h6M18 10v6"/></svg></span><span>Gestão Banco de dados</span></a>
         </div>
       </div>
@@ -279,41 +281,69 @@
 
       <section class="app-view" id="view-acessos" data-view="acessos" hidden>
         <header class="view-header access-heading">
-          <div><p class="overline">ADMINISTRAÇÃO · CONTROLE DE ACESSO</p><h1>Usuários administrativos</h1><p>Cadastre e gerencie quem pode acessar Revisão, Vendedores e as planilhas.</p></div>
+          <div><p class="overline">ADMINISTRAÇÃO · CONTROLE DE ACESSO</p><h1>Usuários e permissões</h1><p>Defina o perfil, o escopo de GN ou lojas e as funcionalidades permitidas.</p></div>
           <div class="seller-count"><span>Ativos</span><strong id="access-count">0</strong></div>
         </header>
         <div class="access-grid">
           <section class="form-card access-create-card" aria-labelledby="access-create-title">
             <div class="section-heading">
               <span class="section-icon" aria-hidden="true">＋</span>
-              <div><h2 id="access-create-title">Cadastrar novo usuário</h2><p>Crie um acesso administrativo com senha provisória.</p></div>
+              <div><h2 id="access-create-title">Cadastrar usuário</h2><p>O menor privilégio é aplicado por padrão.</p></div>
             </div>
             <form id="access-form" autocomplete="off">
               <label class="field">E-mail do usuário<input name="email" type="email" placeholder="usuario@empresa.com.br" autocomplete="off" required></label>
               <label class="field">Senha provisória<input name="password" type="password" minlength="8" placeholder="Mínimo de 8 caracteres" autocomplete="new-password" required></label>
+              <fieldset class="access-fieldset"><legend>Tipo de acesso</legend><div class="role-options">
+                <label><input name="access_role" type="radio" value="ADMINISTRADOR" required><span><strong>Administrador</strong><small>Acesso completo e gestão de permissões.</small></span></label>
+                <label><input name="access_role" type="radio" value="GERENTE_NEGOCIO" required><span><strong>Gerente de Negócio</strong><small>Resultados das lojas vinculadas ao GN.</small></span></label>
+                <label><input name="access_role" type="radio" value="LOJA" required><span><strong>Loja</strong><small>Somente lojas explicitamente autorizadas.</small></span></label>
+              </div></fieldset>
+              <label class="field access-scope" id="access-manager-field" hidden>Selecionar GN<select name="manager"><option value="">Selecione um gestor</option></select></label>
+              <fieldset class="access-fieldset access-scope" id="access-stores-field" hidden><legend>Selecionar lojas autorizadas</legend>
+                <input class="access-store-search" id="access-store-search" type="search" placeholder="Buscar por código ou nome da loja">
+                <div class="access-store-list" id="access-store-list"></div><small class="access-selected-count" id="access-selected-count">0 lojas selecionadas</small>
+              </fieldset>
+              <fieldset class="access-fieldset"><legend>Permissões de menu — Gestão GN</legend><div class="permission-grid">
+                <label><input name="permission" type="checkbox" value="acoes"> Revisão</label><label><input name="permission" type="checkbox" value="vendedores"> Vendedores</label>
+                <label><input name="permission" type="checkbox" value="bd-vendedores"> BD de Dados Vendedor</label><label><input name="permission" type="checkbox" value="administrativo"> Análise de Resultado</label>
+                <label class="admin-permission"><input name="permission" type="checkbox" value="gestao-banco"> Gestão Banco de Dados</label><label class="admin-permission"><input name="permission" type="checkbox" value="acessos"> Controle de Acesso</label>
+              </div></fieldset>
               <label class="notification-option"><input name="notify_new_registration" type="checkbox" value="true"><span><strong>Receber novos cadastros</strong><small>Envia uma cópia do protocolo para este administrador.</small></span></label>
-              <button class="button primary" type="submit">Cadastrar usuário</button>
+              <div class="access-form-actions"><button class="button secondary" id="access-cancel-edit" type="button" hidden>Cancelar edição</button><button class="button primary" type="submit">Salvar usuário</button></div>
             </form>
             <div class="info-box"><span aria-hidden="true">i</span><p>A senha é enviada diretamente ao Supabase e não fica gravada no código público do site.</p></div>
           </section>
           <section class="seller-card access-list-card" aria-labelledby="access-list-title">
-            <div class="access-list-heading"><div><h2 id="access-list-title">Acessos cadastrados</h2><p>Ative, desative ou exclua contas administrativas.</p></div><button class="button secondary" id="refresh-access-button" type="button">Atualizar</button></div>
+            <div class="access-list-heading"><div><h2 id="access-list-title">Usuários e permissões</h2><p>Edite o escopo, desative acessos ou revogue sessões.</p></div><button class="button secondary" id="refresh-access-button" type="button">Atualizar</button></div>
             <div class="seller-table-wrap">
               <table class="seller-table access-table">
-                <thead><tr><th scope="col">Usuário</th><th scope="col">Status</th><th scope="col">Recebe protocolos</th><th scope="col">Cadastro</th><th scope="col">Ações</th></tr></thead>
+                <thead><tr><th scope="col">Usuário</th><th scope="col">Perfil</th><th scope="col">Escopo</th><th scope="col">Menus permitidos</th><th scope="col">Status</th><th scope="col">Cadastro</th><th scope="col">Ações</th></tr></thead>
                 <tbody id="access-list"></tbody>
               </table>
             </div>
-            <div class="empty-state" id="access-empty" hidden><strong>Nenhum usuário encontrado</strong><span>Cadastre o primeiro acesso administrativo.</span></div>
+            <div class="empty-state" id="access-empty" hidden><strong>Nenhum usuário encontrado</strong><span>Cadastre o primeiro acesso à Gestão GN.</span></div>
           </section>
         </div>
       </section>
 
       <section class="app-view" id="view-administrativo" data-view="administrativo" hidden>
         <header class="view-header seller-heading">
-          <div><p class="overline">ANÁLISE · RESULTADOS M5</p><h1>Análise de Resultado</h1><p>Acompanhamento dos resultados da aba M5 por gestor.</p></div>
+          <div><p class="overline">ANÁLISE · RESULTADOS M5</p><h1>Resultados Comerciais | Gerente de Negócio</h1><p id="admin-view-subtitle">Gestor selecionado | Período analisado</p></div>
           <div class="seller-count"><span>Registros</span><strong id="admin-row-count">0</strong></div>
         </header>
+        <nav class="cockpit-shortcuts analysis-shortcuts" aria-label="Visões de análise">
+          <a class="shortcut active" href="#administrativo" data-view-target="administrativo" aria-current="page"><span aria-hidden="true">▥</span><strong>RESULTADOS</strong></a>
+          <a class="shortcut" href="#comparativo" data-view-target="comparativo"><span aria-hidden="true">↔</span><strong>COMPARATIVO</strong></a>
+          <a class="shortcut" href="#comparativo-loja" data-view-target="comparativo-loja"><span aria-hidden="true">⌂</span><strong>LOJAS</strong></a>
+        </nav>
+        <section class="gn-results" aria-label="Indicadores consolidados">
+          <div class="metric-grid gn-metric-grid">
+            <article class="metric-card"><i aria-hidden="true">▥</i><div><span id="admin-current-month-label">Realizado do mês</span><strong id="admin-realizado">0</strong><small>Soma do realizado em outubro</small></div></article>
+            <article class="metric-card"><i aria-hidden="true">↗</i><div><span>Tendência OUT-26</span><strong id="admin-tendencia">0</strong><small>Projeção original da M5</small></div></article>
+            <article class="metric-card"><i aria-hidden="true">◎</i><div><span>Meta OUT-26</span><strong id="admin-meta">0</strong><small>Soma das metas válidas</small></div></article>
+            <article class="metric-card featured"><i aria-hidden="true">◆</i><div><span>Atingimento projetado</span><strong id="admin-atingimento">0%</strong><small>Tendência válida ÷ Meta válida</small></div></article>
+          </div>
+        </section>
         <div class="admin-toolbar">
           <div class="field"><span>Gestor</span><div class="filter-multiselect" id="admin-manager-filter"><button type="button" aria-expanded="false"><span>Todos os gestores</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
           <div class="field"><span>Regional</span><div class="filter-multiselect" id="admin-region-filter"><button type="button" aria-expanded="false"><span>Todas as regionais</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
@@ -328,18 +358,13 @@
         <section class="product-performance" aria-labelledby="product-performance-title">
           <div class="analytics-heading">
             <div><p class="overline">DESEMPENHO POR PRODUTO</p><h2 id="product-performance-title">Vendas do mês por produto</h2></div>
-            <p>Cartões compactos com realizado, meta e tendência.</p>
+            <p>Realizado, meta, tendência e evolução mensal.</p>
           </div>
           <div class="product-score-grid" id="admin-product-cards"></div>
           <div class="empty-state compact" id="admin-product-empty" hidden><strong>Histórico ainda não disponível</strong><span>Atualize a base no menu Gestão Banco de dados.</span></div>
         </section>
-        <div class="metric-grid" aria-label="Indicadores da análise de resultado">
-          <article class="metric-card"><span>PDVs</span><strong id="admin-pdv-count">0</strong><small>Códigos distintos</small></article>
-          <article class="metric-card"><span id="admin-current-month-label">Realizado do mês</span><strong id="admin-realizado">0</strong><small>Soma da produção</small></article>
-          <article class="metric-card"><span>Tendência</span><strong id="admin-tendencia">0</strong><small>Projeção do mês</small></article>
-          <article class="metric-card featured"><span>Atingimento</span><strong id="admin-atingimento">0%</strong><small>Tendência sobre meta</small></article>
-        </div>
         <div class="seller-card admin-table-card">
+          <div class="admin-table-heading"><p class="overline">DETALHAMENTO POR PLATAFORMA E LOJA</p><span id="admin-pdv-count">0 PDVs no recorte atual</span></div>
           <div class="seller-table-wrap">
             <table class="seller-table admin-table">
               <thead><tr id="admin-table-head"><th>Plataforma</th><th>Código</th><th>Regional</th><th>PDV</th><th>DDD</th><th>AGO-26</th><th>SET-26</th><th>OUT-26</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
@@ -351,9 +376,88 @@
         </div>
       </section>
 
+      <section class="app-view" id="view-comparativo" data-view="comparativo" hidden>
+        <header class="view-header seller-heading">
+          <div><p class="overline">ANÁLISE · COMPARATIVO REGIONAL</p><h1>Regionais 1, 2 e 3</h1><p>Visão consolidada de desempenho para comparação direta entre as três regionais.</p></div>
+          <div class="seller-count comparison-count"><span>Regionais</span><strong id="comparison-region-count">0</strong></div>
+        </header>
+        <nav class="cockpit-shortcuts analysis-shortcuts" aria-label="Visões de análise">
+          <a class="shortcut" href="#administrativo" data-view-target="administrativo"><span aria-hidden="true">▥</span><strong>RESULTADOS</strong></a>
+          <a class="shortcut active" href="#comparativo" data-view-target="comparativo" aria-current="page"><span aria-hidden="true">↔</span><strong>COMPARATIVO</strong></a>
+          <a class="shortcut" href="#comparativo-loja" data-view-target="comparativo-loja"><span aria-hidden="true">⌂</span><strong>LOJAS</strong></a>
+        </nav>
+        <section class="comparison-filter-card" aria-label="Filtros do comparativo">
+          <div class="comparison-filter-heading"><span aria-hidden="true">≡</span><div><strong>Filtros</strong><small>Refine a comparação entre as regionais.</small></div></div>
+          <div class="field"><span>Produto</span><div class="filter-multiselect" id="comparison-product-filter"><button type="button" aria-expanded="false"><span>Todos os produtos</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <button class="button clear-filters" id="clear-comparison-filters" type="button">Limpar filtros</button>
+        </section>
+        <section class="comparison-grid" id="comparison-cards" aria-label="Resumo por regional"></section>
+        <div class="comparison-analysis-row">
+          <section class="seller-card comparison-chart-card" aria-labelledby="comparison-chart-title">
+            <div class="analytics-heading"><div><p class="overline">ATINGIMENTO PROJETADO</p><h2 id="comparison-chart-title">Desempenho entre regionais</h2></div><p>Tendência em relação à meta vigente.</p></div>
+            <div class="regional-bars" id="comparison-bars"></div>
+            <div class="comparison-legend" aria-label="Legenda"><span class="legend-target">Meta vigente</span><span class="legend-positive">Acima da meta</span><span class="legend-negative">Abaixo da meta</span></div>
+          </section>
+          <aside class="seller-card comparison-insight" aria-labelledby="comparison-insight-title">
+            <span class="insight-icon" aria-hidden="true">!</span>
+            <div><p class="overline" id="comparison-insight-title">INSIGHT EXECUTIVO</p><p id="comparison-insight-text">Aguardando dados para análise.</p></div>
+          </aside>
+        </div>
+        <section class="seller-card admin-table-card" aria-labelledby="comparison-table-title">
+          <div class="comparison-table-heading"><div><p class="overline" id="comparison-table-title">CONSOLIDADO REGIONAL</p><span>Base atual da Análise de Resultado</span></div><label class="comparison-sort">Ordenar por<select id="comparison-sort"><option value="region">Regional</option><option value="achievement-desc">Maior atingimento</option><option value="achievement-asc">Menor atingimento</option><option value="realized-desc">Maior realizado</option><option value="gap-asc">Maior GAP negativo</option><option value="trend-desc">Maior tendência</option><option value="ytd-desc">Variação YTD</option></select></label></div>
+          <div class="seller-table-wrap">
+            <table class="seller-table comparison-table">
+              <thead><tr><th>Regional</th><th>PDVs</th><th>Realizado</th><th>Tendência</th><th>Meta</th><th>Gap</th><th>% Ating.</th><th>YTD25</th><th>YTD26</th><th>% YTD</th></tr></thead>
+              <tbody id="comparison-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="comparison-empty" hidden><strong>Dados ainda não disponíveis</strong><span>Atualize a base no menu Gestão Banco de dados.</span></div>
+        </section>
+        <section class="seller-card comparison-detail" id="comparison-detail" hidden aria-labelledby="comparison-detail-title">
+          <div class="comparison-table-heading"><div><p class="overline">DETALHAMENTO REGIONAL</p><h2 id="comparison-detail-title">Regional selecionada</h2><span>Produtos e lojas no recorte atual.</span></div><button class="button secondary" id="clear-comparison-region" type="button">Remover seleção</button></div>
+          <div class="seller-table-wrap"><table class="seller-table comparison-detail-table"><thead><tr><th>Produto</th><th>Código</th><th>PDV</th><th>Realizado</th><th>Tendência</th><th>Meta</th><th>GAP</th><th>% Ating.</th></tr></thead><tbody id="comparison-detail-body"></tbody></table></div>
+        </section>
+      </section>
+
+      <section class="app-view" id="view-comparativo-loja" data-view="comparativo-loja" hidden>
+        <header class="view-header seller-heading compact-page-header">
+          <div class="compact-page-heading"><span class="compact-page-icon" aria-hidden="true">▥</span><h1>Desempenho por loja</h1><p>Compare as lojas por produto e regional.</p></div>
+          <div class="seller-count compact-context"><span>Lojas</span><strong id="store-comparison-count">0</strong></div>
+        </header>
+        <nav class="cockpit-shortcuts analysis-shortcuts" aria-label="Visões de análise">
+          <a class="shortcut" href="#administrativo" data-view-target="administrativo"><span aria-hidden="true">▥</span><strong>RESULTADOS</strong></a>
+          <a class="shortcut" href="#comparativo" data-view-target="comparativo"><span aria-hidden="true">↔</span><strong>REGIONAIS</strong></a>
+          <a class="shortcut active" href="#comparativo-loja" data-view-target="comparativo-loja" aria-current="page"><span aria-hidden="true">⌂</span><strong>LOJAS</strong></a>
+        </nav>
+        <section class="comparison-filter-card store-comparison-filters" aria-label="Filtros do comparativo por loja">
+          <div class="field"><span>Produto</span><div class="filter-multiselect" id="store-comparison-product-filter"><button type="button" aria-expanded="false"><span>Todos os produtos</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <div class="field"><span>Regional</span><div class="filter-multiselect" id="store-comparison-region-filter"><button type="button" aria-expanded="false"><span>Todas as regionais</span><b aria-hidden="true">⌄</b></button><div class="filter-options" hidden></div></div></div>
+          <button class="button clear-filters" id="clear-store-comparison-filters" type="button">Limpar filtros</button>
+        </section>
+        <section class="store-comparison-summary" aria-label="Resumo da comparação">
+          <article><i aria-hidden="true">▣</i><div><span>Lojas analisadas</span><strong id="store-summary-total">0</strong></div></article>
+          <article><i aria-hidden="true">♜</i><div><span>Maior atingimento</span><strong id="store-summary-leader">—</strong><small id="store-summary-leader-value">0%</small></div></article>
+          <article><i aria-hidden="true">◎</i><div><span>Atingimento consolidado</span><strong id="store-summary-achievement">0%</strong></div></article>
+        </section>
+        <section class="seller-card comparison-chart-card" aria-labelledby="store-comparison-chart-title">
+          <div class="analytics-heading"><div><p class="overline">RANKING DE ATINGIMENTO</p><h2 id="store-comparison-chart-title">Desempenho entre lojas</h2></div><p>Tendência em relação à meta vigente.</p></div>
+          <div class="regional-bars store-comparison-bars" id="store-comparison-bars"></div>
+        </section>
+        <section class="seller-card admin-table-card" aria-labelledby="store-comparison-table-title">
+          <div class="admin-table-heading"><p class="overline" id="store-comparison-table-title">COMPARATIVO POR LOJA</p><span>Ordenado pelo maior atingimento</span></div>
+          <div class="seller-table-wrap">
+            <table class="seller-table comparison-table store-comparison-table">
+              <thead><tr><th><button type="button" data-store-sort="code">Loja</button></th><th><button type="button" data-store-sort="regional">Regional</button></th><th><button type="button" data-store-sort="pdv">PDV</button></th><th><button type="button" data-store-sort="realizado">Realizado</button></th><th><button type="button" data-store-sort="tendencia">Tendência</button></th><th><button type="button" data-store-sort="meta">Meta</button></th><th><button type="button" data-store-sort="gap">Gap</button></th><th><button type="button" data-store-sort="atingimento" aria-sort="descending">% Ating.</button></th><th><button type="button" data-store-sort="ytd25">YTD25</button></th><th><button type="button" data-store-sort="ytd26">YTD26</button></th><th><button type="button" data-store-sort="ytd">% YTD</button></th></tr></thead>
+              <tbody id="store-comparison-table-body"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="store-comparison-empty" hidden><strong>Nenhuma loja encontrada</strong><span>Ajuste os filtros ou atualize a base administrativa.</span></div>
+        </section>
+      </section>
+
       <section class="app-view" id="view-gestao-banco" data-view="gestao-banco" hidden>
         <header class="view-header">
-          <div><p class="overline">ADMINISTRAÇÃO · ATUALIZAÇÃO DA BASE</p><h1>Gestão Banco de dados</h1><p>Importe a planilha Master completa. Filtros e linhas ocultas serão ignorados, e somente registros com Meta RVV = SIM e META maior ou igual a 1 serão considerados.</p></div>
+          <div><p class="overline">ADMINISTRAÇÃO · ATUALIZAÇÃO DA BASE</p><h1>Gestão Banco de dados</h1><p>Importe a planilha Master completa. Produtos sem meta continuam visíveis; a regra META maior ou igual a 1 é aplicada somente ao cálculo de atingimento.</p></div>
         </header>
         <section class="form-card database-upload-card" aria-labelledby="database-upload-title">
           <div class="section-heading"><span class="section-icon" aria-hidden="true">↑</span><div><h2 id="database-upload-title">Atualizar base administrativa</h2><p>O sistema cruza a aba MetaIW com a aba M5 e atualiza todos os resultados.</p></div></div>
@@ -409,6 +513,6 @@
   </div>
   <script src="./assets/jszip.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="./app.js?v=20261019-02"></script>
+  <script src="./app.js?v=20261019-28"></script>
 </body>
 </html>

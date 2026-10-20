@@ -1,0 +1,2 @@
+# Dados administrativos não podem ser publicados junto ao frontend estático.
+dist/assets/m5-*.json
